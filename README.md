@@ -254,11 +254,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Built on the excellent Rust ecosystem
 - Incorporates cutting-edge research in state-space models and geometric deep learning
 
-## 📖 Documentation
+## 📖 Documentation(soon)
 
-- [API Documentation](https://docs.rs/helix-ml)
-- [Architecture Guide](docs/ARCH.md)
-- [Examples](examples/)
+- [API Documentation]
+- [Architecture Guide]
+- [Examples]
 
 ---
 
