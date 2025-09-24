@@ -1,0 +1,11 @@
+[package]
+name = "geometry"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "🌀 HelixML Geometry - Geometric components for experimental architectures"
+
+[dependencies]
+tensor-core = { path = "../tensor-core" }

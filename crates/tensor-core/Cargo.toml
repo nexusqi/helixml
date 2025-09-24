@@ -1,0 +1,26 @@
+[package]
+name = "tensor-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "🌀 Core tensor trait and operations for VortexML"
+
+[dependencies]
+# Core
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+
+# Math
+ndarray.workspace = true
+num-traits.workspace = true
+num-complex.workspace = true
+
+# Performance
+rayon.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+proptest.workspace = true

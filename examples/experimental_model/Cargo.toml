@@ -1,0 +1,12 @@
+[package]
+name = "experimental_model"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "🌀 Experimental model combining all HelixML components"
+
+[dependencies]
+helix_ml = { path = "../../lib" }
+anyhow = { workspace = true }

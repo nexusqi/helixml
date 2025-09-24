@@ -1,0 +1,11 @@
+[package]
+name = "simple_example"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Simple example of HelixML usage"
+
+[dependencies]
+helix_ml = { path = "../../lib" }

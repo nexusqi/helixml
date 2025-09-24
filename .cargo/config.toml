@@ -1,0 +1,42 @@
+# Cargo configuration for HelixML
+
+[build]
+# Use all available cores for compilation
+jobs = 0
+
+[profile.dev]
+# Optimize dependencies for faster compilation
+opt-level = 1
+debug = true
+split-debuginfo = "unpacked"
+
+[profile.release]
+# Optimize for performance
+opt-level = 3
+debug = false
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.test]
+# Optimize tests for speed
+opt-level = 1
+debug = true
+
+[profile.bench]
+# Optimize benchmarks
+opt-level = 3
+debug = false
+lto = true
+codegen-units = 1
+
+# Registry configuration
+[registry]
+default = "crates-io"
+
+# Source configuration
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "vendor"

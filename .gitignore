@@ -1,0 +1,55 @@
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Documentation
+/doc/
+
+# Coverage
+tarpaulin-report.html
+lcov.info
+
+# Profiling
+*.prof
+
+# Benchmarks
+target/criterion/
+
+# Local configuration
+.env
+.env.local
+
+# Model files
+*.model
+*.pth
+*.pt
+*.bin
+
+# Data files
+data/
+datasets/
+*.csv
+*.json
+*.parquet
+
+# Cache
+.cache/

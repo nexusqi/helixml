@@ -1,0 +1,28 @@
+# Clippy configuration for HelixML
+
+# Allow some lints that are too strict for our use case
+allow = [
+    "clippy::too_many_arguments",
+    "clippy::needless_pass_by_value",
+    "clippy::module_name_repetitions",
+    "clippy::missing_errors_doc",
+    "clippy::missing_panics_doc",
+]
+
+# Deny some lints that are important for our codebase
+deny = [
+    "clippy::unwrap_used",
+    "clippy::expect_used",
+    "clippy::panic",
+    "clippy::todo",
+    "clippy::unimplemented",
+    "clippy::unreachable",
+]
+
+# Set some specific configurations
+[clippy::all]
+# Allow up to 7 arguments for neural network layers
+too_many_arguments_threshold = 7
+
+# Allow some complexity for ML algorithms
+cognitive_complexity_threshold = 30

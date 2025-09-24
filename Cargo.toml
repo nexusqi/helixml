@@ -1,0 +1,85 @@
+[workspace]
+resolver = "2"
+members = [
+    "lib",
+    "crates/tensor-core",
+    "crates/backend-cpu", 
+    "crates/backend-cuda",
+    "crates/autograd",
+    "crates/nn",
+    "crates/optim",
+    "crates/data",
+    "crates/topo-memory",
+    "crates/geometry",
+    "crates/scheduling",
+    "crates/moe",
+    "crates/quant",
+    "crates/rev",
+    "crates/serve",
+    "crates/io",
+    "crates/utils",
+    "examples/ssm_byte_lm",
+    "examples/hyena_span_infilling",
+    "examples/simple_example",
+    "examples/advanced_example",
+    "examples/broadcasting_example",
+    "examples/checkpointing_example",
+    "examples/mixed_precision_example",
+    "examples/ssm_example",
+    "examples/hyena_example",
+    "examples/experimental_model"
+]
+
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Alex B <alex@helix-ml.dev>"]
+license = "MIT"
+repository = "https://github.com/helix-ml/helix-ml"
+description = "🌀 HelixML: High-performance ML framework for SSM/Hyena with topological memory"
+
+[workspace.dependencies]
+# Core dependencies
+anyhow = "1.0"
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Math & tensors
+ndarray = "0.15"
+num-traits = "0.2"
+num-complex = "0.4"
+
+# Async & networking
+tokio = { version = "1.0", features = ["full"] }
+axum = "0.7"
+tonic = "0.10"
+tower = "0.4"
+
+# Data processing
+polars = { version = "0.40", features = ["lazy", "parquet"] }
+arrow = "50.0"
+
+# Performance
+rayon = "1.8"
+criterion = "0.5"
+
+# CUDA
+cudarc = "0.9"
+cublas-sys = "0.1"
+
+# Quantization
+half = "2.3"
+
+# Testing
+proptest = "1.4"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.bench]
+inherits = "release"

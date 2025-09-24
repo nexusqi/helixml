@@ -1,0 +1,11 @@
+[package]
+name = "checkpointing_example"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Gradient checkpointing demonstration"
+
+[dependencies]
+helix_ml = { path = "../../lib" }

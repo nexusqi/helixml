@@ -1,0 +1,11 @@
+[package]
+name = "scheduling"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "🌀 HelixML Scheduling - CDT scheduler for advanced planning"
+
+[dependencies]
+tensor-core = { path = "../tensor-core" }
