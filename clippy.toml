@@ -1,28 +1,66 @@
 # Clippy configuration for HelixML
 
-# Allow some lints that are too strict for our use case
+# Allow specific lints that are too noisy for our codebase
+# Disable specific lints that don't fit our use case
+
+# Allow some lints that are commonly triggered in ML code
 allow = [
-    "clippy::too_many_arguments",
-    "clippy::needless_pass_by_value",
-    "clippy::module_name_repetitions",
-    "clippy::missing_errors_doc",
-    "clippy::missing_panics_doc",
+    "too_many_arguments",           # ML functions often have many parameters
+    "type_complexity",             # Generic types can be complex
+    "module_name_repetitions",     # Common in workspace structures
+    "similar_names",               # Common in mathematical code
+    "cast_precision_loss",         # Sometimes necessary for ML operations
+    "cast_possible_truncation",    # Sometimes necessary for ML operations
+    "float_cmp",                   # Common in ML for approximate equality
+    "must_use_candidate",          # Many ML functions return results that should be used
 ]
 
-# Deny some lints that are important for our codebase
+# Set the minimum rust version for clippy
+msrv = "1.70"
+
+# Deny specific lints that are important for our codebase
 deny = [
-    "clippy::unwrap_used",
-    "clippy::expect_used",
-    "clippy::panic",
-    "clippy::todo",
-    "clippy::unimplemented",
-    "clippy::unreachable",
+    "missing_docs_in_crate_items", # Require documentation
+    "missing_debug_implementations", # Require Debug implementations
+    "missing_copy_implementations",  # Require Copy where appropriate
+    "unused_crate_dependencies",   # Clean up unused dependencies
+    "unused_import_braces",        # Clean up imports
+    "unused_qualifications",       # Clean up qualifications
+    "unused_results",              # Don't ignore results
+    "unreachable",                 # Catch unreachable code
+    "panic",                       # Avoid panic in library code
+    "todo",                        # Avoid TODO comments in production code
+    "unimplemented",               # Avoid unimplemented in production code
+    "unreachable_pub",             # Avoid unreachable public items
+    "unsafe_code",                 # Be explicit about unsafe code
+    "unused_unsafe",               # Don't use unnecessary unsafe
+    "wildcard_dependencies",       # Be explicit about dependencies
 ]
 
-# Set some specific configurations
+# Configure specific lints
 [clippy::all]
-# Allow up to 7 arguments for neural network layers
-too_many_arguments_threshold = 7
+# Enable all clippy lints by default
 
-# Allow some complexity for ML algorithms
-cognitive_complexity_threshold = 30
+[clippy::nursery]
+# Enable nursery lints (experimental)
+
+[clippy::pedantic]
+# Enable pedantic lints
+
+[clippy::cargo]
+# Enable cargo-specific lints
+
+[clippy::complexity]
+# Enable complexity lints
+
+[clippy::correctness]
+# Enable correctness lints
+
+[clippy::perf]
+# Enable performance lints
+
+[clippy::style]
+# Enable style lints
+
+[clippy::suspicious]
+# Enable suspicious lints

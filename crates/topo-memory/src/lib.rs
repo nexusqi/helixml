@@ -11,26 +11,31 @@ pub mod motifs;
 pub mod cycles;
 pub mod stable_cores;
 pub mod links;
+pub mod uis_links;
 pub mod stability;
 
 pub use motifs::*;
 pub use cycles::*;
 pub use stable_cores::*;
 pub use links::*;
+pub use uis_links::*;
 pub use stability::*;
 
 /// Core topological memory system
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct TopologicalMemory<T: Tensor> {
     // Memory levels
     m0_motifs: MotifDetector<T>,
     m1_cycles: CycleAnalyzer<T>,
     m2_stable_cores: StableCoreExtractor<T>,
     
-    // Link system
+    // Link system (legacy)
     u_links: TemporalLinks<T>,      // Temporal links
     i_links: IntermediateLinks<T>,  // Intermediate links
     s_links: StableLinks<T>,        // Stable links
+    
+    // New U/I/S link system
+    link_manager: LinkManager,
     
     // Stability calculator
     stability_calc: StabilityCalculator<T>,
@@ -58,6 +63,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         let i_links = IntermediateLinks::new(d_model, device)?;
         let s_links = StableLinks::new(d_model, device)?;
         
+        let link_manager = LinkManager::new();
+        
         let stability_calc = StabilityCalculator::new(device)?;
         
         Ok(Self {
@@ -67,6 +74,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             u_links,
             i_links,
             s_links,
+            link_manager,
             stability_calc,
             max_motif_length,
             cycle_detection_threshold: cycle_threshold,
@@ -143,6 +151,43 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             intermediate_link_count: self.i_links.get_link_count(),
             stable_link_count: self.s_links.get_link_count(),
         }
+    }
+
+    // U/I/S Link system methods
+    pub fn add_u_link(&mut self, link: Link) -> Result<()> {
+        self.link_manager.add_u_link(link)
+    }
+
+    pub fn get_link(&self, link_id: u64) -> Result<Option<Link>> {
+        self.link_manager.get_link(link_id)
+    }
+
+    pub fn get_link_mut(&self, link_id: u64) -> Result<Option<Link>> {
+        self.link_manager.get_link_mut(link_id)
+    }
+
+    pub fn update_link(&mut self, link: Link) -> Result<()> {
+        self.link_manager.update_link(link)
+    }
+
+    pub fn sample_recent_u(&self, k: usize) -> Result<Vec<u64>> {
+        self.link_manager.sample_recent_u(k)
+    }
+
+    pub fn get_all_u_links(&self) -> Result<Vec<u64>> {
+        self.link_manager.get_all_u_links()
+    }
+
+    pub fn update_links_with_signals(&mut self, r: f32, e: f32, c: f32, phi: f32, sp: &StabilityParams) -> Result<()> {
+        self.link_manager.update_links_with_signals(r, e, c, phi, sp)
+    }
+
+    pub fn sweep_and_consolidate(&mut self, sp: &StabilityParams, replay_boost: bool) -> Result<()> {
+        self.link_manager.sweep_and_consolidate(sp, replay_boost)
+    }
+
+    pub fn get_link_stats(&self) -> LinkStats {
+        self.link_manager.get_stats()
     }
 }
 

@@ -1,20 +1,58 @@
 version: 2
 updates:
-  # Enable version updates for Rust
+  # Enable version updates for Cargo
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
       interval: "weekly"
-      day: "monday"
+      day: "sunday"
       time: "09:00"
     open-pull-requests-limit: 10
     reviewers:
-      - "helix-ml/core"
+      - "blackterrordistro"
     assignees:
-      - "helix-ml/core"
+      - "blackterrordistro"
     commit-message:
-      prefix: "chore"
+      prefix: "deps"
       include: "scope"
     labels:
       - "dependencies"
-      - "rust"
+      - "cargo"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "blackterrordistro"
+    assignees:
+      - "blackterrordistro"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
+
+  # Enable version updates for Docker
+  - package-ecosystem: "docker"
+    directory: "/docker"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "09:00"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "blackterrordistro"
+    assignees:
+      - "blackterrordistro"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "docker"

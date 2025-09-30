@@ -1,0 +1,20 @@
+[package]
+name = "meanings"
+version = "0.1.0"
+edition = "2021"
+description = "Meaning Induction Bootstrap (SIM/MIL) with U/I/S links and Stability"
+
+[dependencies]
+tensor-core = { path = "../tensor-core" }
+topo-memory = { path = "../topo-memory" }
+nn = { path = "../nn" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "bootstrap_benchmarks"
+harness = false

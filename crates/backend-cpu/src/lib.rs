@@ -268,12 +268,166 @@ impl Tensor for CpuTensor {
                 dtype: tensors[0].dtype,
                 device: tensors[0].device.clone(),
             })
+        } else if first_shape.ndim() == 2 {
+            // Stack 2D tensors to create 3D tensor
+            let mut result_data = Vec::new();
+            for tensor in &tensors {
+                result_data.extend_from_slice(tensor.data.as_slice().unwrap());
+            }
+            
+            let result = ArrayD::from_shape_vec(IxDyn(&[tensors.len(), first_shape.dim(0).unwrap(), first_shape.dim(1).unwrap()]), result_data).map_err(|_| TensorError::BackendError {
+                message: "Failed to create stacked tensor".to_string(),
+            })?;
+            
+            Ok(Self {
+                data: result,
+                shape: Shape::new(output_shape),
+                dtype: tensors[0].dtype,
+                device: tensors[0].device.clone(),
+            })
+        } else if first_shape.ndim() == 3 {
+            // Stack 3D tensors to create 4D tensor
+            let mut result_data = Vec::new();
+            for tensor in &tensors {
+                result_data.extend_from_slice(tensor.data.as_slice().unwrap());
+            }
+            
+            let result = ArrayD::from_shape_vec(IxDyn(&[tensors.len(), first_shape.dim(0).unwrap(), first_shape.dim(1).unwrap(), first_shape.dim(2).unwrap()]), result_data).map_err(|_| TensorError::BackendError {
+                message: "Failed to create stacked tensor".to_string(),
+            })?;
+            
+            Ok(Self {
+                data: result,
+                shape: Shape::new(output_shape),
+                dtype: tensors[0].dtype,
+                device: tensors[0].device.clone(),
+            })
         } else {
-            // For higher dimensions, return error for now
+            // For higher dimensions, use generic stacking
+            CpuTensor::generic_stack(tensors, dim)
+        }
+    }
+    
+    fn to_device(&self, device: &Device) -> Result<Self> {
+        if device.is_cpu() {
+            Ok(self.clone())
+        } else {
             Err(TensorError::UnsupportedOperation {
-                op: format!("Stacking for {}D tensors not implemented yet", first_shape.ndim()),
+                op: format!("moving to device {}", device),
             })
         }
+    }
+    
+    fn to_dtype(&self, dtype: DType) -> Result<Self> {
+        match (self.dtype, dtype) {
+            (DType::F32, DType::F32) => Ok(self.clone()),
+            (DType::F32, DType::F16) => {
+                // Convert F32 to F16 (simplified - just truncate)
+                let data_f16: Vec<f32> = self.data.as_slice().unwrap().iter().map(|&x| x).collect();
+                Ok(Self {
+                    data: ArrayD::from_shape_vec(self.data.shape(), data_f16).map_err(|_| TensorError::BackendError {
+                        message: "Failed to convert to F16".to_string(),
+                    })?,
+                    shape: self.shape.clone(),
+                    dtype: DType::F16,
+                    device: self.device.clone(),
+                })
+            },
+            _ => Err(TensorError::UnsupportedOperation {
+                op: format!("conversion from {:?} to {:?}", self.dtype, dtype),
+            })
+        }
+    }
+    
+    fn as_slice<T>(&self) -> Result<&[T]> {
+        // This is unsafe but necessary for the trait
+        unsafe {
+            Ok(std::slice::from_raw_parts(
+                self.data.as_ptr() as *const T,
+                self.data.len()
+            ))
+        }
+    }
+    
+    fn as_slice_mut<T>(&mut self) -> Result<&mut [T]> {
+        // This is unsafe but necessary for the trait
+        unsafe {
+            Ok(std::slice::from_raw_parts_mut(
+                self.data.as_mut_ptr() as *mut T,
+                self.data.len()
+            ))
+        }
+    }
+}
+
+impl CpuTensor {
+    fn generic_stack(tensors: Vec<Self>, dim: usize) -> Result<Self> {
+        if tensors.is_empty() {
+            return Err(TensorError::UnsupportedOperation {
+                op: "stacking of empty tensor list".to_string(),
+            });
+        }
+        
+        let first_shape = tensors[0].shape();
+        let mut output_shape = first_shape.as_slice().to_vec();
+        output_shape.insert(dim, tensors.len());
+        
+        // Calculate total size
+        let total_size: usize = output_shape.iter().product();
+        let mut result_data = vec![0.0; total_size];
+        
+        // Calculate strides for output
+        let mut output_strides = vec![1; output_shape.len()];
+        for i in (0..output_shape.len()-1).rev() {
+            output_strides[i] = output_strides[i+1] * output_shape[i+1];
+        }
+        
+        // Fill result data
+        for (tensor_idx, tensor) in tensors.iter().enumerate() {
+            let tensor_data = tensor.data.as_slice().unwrap();
+            let tensor_shape = tensor.shape();
+            
+            // Calculate strides for input tensor
+            let mut input_strides = vec![1; tensor_shape.ndim()];
+            for i in (0..tensor_shape.ndim()-1).rev() {
+                input_strides[i] = input_strides[i+1] * tensor_shape.dim(i+1).unwrap();
+            }
+            
+            // Copy tensor data to result
+            for i in 0..tensor.numel() {
+                let mut coords = vec![0; tensor_shape.ndim()];
+                let mut temp_idx = i;
+                
+                // Convert linear index to coordinates
+                for (j, &dim_size) in tensor_shape.as_slice().iter().enumerate().rev() {
+                    coords[j] = temp_idx % dim_size;
+                    temp_idx /= dim_size;
+                }
+                
+                // Calculate output coordinates
+                let mut output_coords = coords.clone();
+                output_coords.insert(dim, tensor_idx);
+                
+                // Calculate output index
+                let mut output_idx = 0;
+                for (j, &coord) in output_coords.iter().enumerate() {
+                    output_idx += coord * output_strides[j];
+                }
+                
+                result_data[output_idx] = tensor_data[i];
+            }
+        }
+        
+        let result = ArrayD::from_shape_vec(IxDyn(&output_shape), result_data).map_err(|_| TensorError::BackendError {
+            message: "Failed to create stacked tensor".to_string(),
+        })?;
+        
+        Ok(Self {
+            data: result,
+            shape: Shape::new(output_shape),
+            dtype: tensors[0].dtype,
+            device: tensors[0].device.clone(),
+        })
     }
     
     fn to_device(&self, device: &Device) -> Result<Self> {
@@ -326,6 +480,63 @@ impl Tensor for CpuTensor {
                 self.data.len(),
             ))
         }
+    }
+    
+    fn generic_broadcast_to(tensor: &Self, shape: Shape) -> Result<Self> {
+        let self_shape = tensor.shape();
+        let self_data = tensor.data.as_slice().unwrap();
+        
+        // Calculate strides for broadcasting
+        let mut self_strides = vec![1; self_shape.ndim()];
+        for i in (0..self_shape.ndim()-1).rev() {
+            self_strides[i] = self_strides[i+1] * self_shape.dim(i+1).unwrap();
+        }
+        
+        // Pad self_shape with 1s on the left
+        let mut padded_shape = vec![1; shape.ndim() - self_shape.ndim()];
+        padded_shape.extend(self_shape.as_slice());
+        
+        // Calculate output size
+        let output_size: usize = shape.as_slice().iter().product();
+        let mut result_data = vec![0.0; output_size];
+        
+        // Calculate output strides
+        let mut output_strides = vec![1; shape.ndim()];
+        for i in (0..shape.ndim()-1).rev() {
+            output_strides[i] = output_strides[i+1] * shape.dim(i+1).unwrap();
+        }
+        
+        // Fill result data
+        for i in 0..output_size {
+            let mut self_idx = 0;
+            let mut temp_idx = i;
+            
+            for (j, &dim_size) in shape.as_slice().iter().enumerate().rev() {
+                let coord = temp_idx % dim_size;
+                temp_idx /= dim_size;
+                
+                let self_coord = if j < padded_shape.len() && padded_shape[j] != 1 {
+                    coord % padded_shape[j]
+                } else {
+                    0
+                };
+                
+                self_idx += self_coord * if j < self_strides.len() { self_strides[j] } else { 1 };
+            }
+            
+            result_data[i] = self_data[self_idx];
+        }
+        
+        let result = ArrayD::from_shape_vec(IxDyn(shape.as_slice()), result_data).map_err(|_| TensorError::BackendError {
+            message: "Failed to create broadcasted tensor".to_string(),
+        })?;
+        
+        Ok(Self {
+            data: result,
+            shape,
+            dtype: tensor.dtype,
+            device: tensor.device.clone(),
+        })
     }
 }
 
@@ -1012,6 +1223,11 @@ impl TensorBroadcast for CpuTensor {
             });
         }
         
+        // If shapes are identical, no broadcasting needed
+        if self_shape == &shape {
+            return Ok(self.clone());
+        }
+        
         // Pad self_shape with 1s on the left to match target ndim
         let mut padded_shape = vec![1; shape.ndim() - self_shape.ndim()];
         padded_shape.extend(self_shape.as_slice());
@@ -1026,40 +1242,142 @@ impl TensorBroadcast for CpuTensor {
             }
         }
         
-        // For now, implement simple broadcasting for common cases
-        if self_shape.ndim() == 1 && shape.ndim() == 2 {
-            let self_size = self_shape.dim(0).unwrap();
-            let target_rows = shape.dim(0).unwrap();
-            let target_cols = shape.dim(1).unwrap();
-            
-            if self_size == target_cols {
-                // Broadcast 1D vector to 2D matrix by repeating rows
-                let mut result_data = Vec::new();
-                for _ in 0..target_rows {
-                    result_data.extend_from_slice(self.data.as_slice().unwrap());
+        // Implement broadcasting for various cases
+        match (self_shape.ndim(), shape.ndim()) {
+            (1, 2) => {
+                let self_size = self_shape.dim(0).unwrap();
+                let target_rows = shape.dim(0).unwrap();
+                let target_cols = shape.dim(1).unwrap();
+                
+                if self_size == target_cols {
+                    // Broadcast 1D vector to 2D matrix by repeating rows
+                    let mut result_data = Vec::new();
+                    for _ in 0..target_rows {
+                        result_data.extend_from_slice(self.data.as_slice().unwrap());
+                    }
+                    
+                    let result = ArrayD::from_shape_vec(IxDyn(&[target_rows, target_cols]), result_data).map_err(|_| TensorError::BackendError {
+                        message: "Failed to create broadcasted tensor".to_string(),
+                    })?;
+                    
+                    Ok(Self {
+                        data: result,
+                        shape,
+                        dtype: self.dtype,
+                        device: self.device.clone(),
+                    })
+                } else if self_size == target_rows {
+                    // Broadcast 1D vector to 2D matrix by repeating columns
+                    let mut result_data = Vec::new();
+                    for i in 0..target_rows {
+                        for j in 0..target_cols {
+                            result_data.push(self.data.as_slice().unwrap()[i]);
+                        }
+                    }
+                    
+                    let result = ArrayD::from_shape_vec(IxDyn(&[target_rows, target_cols]), result_data).map_err(|_| TensorError::BackendError {
+                        message: "Failed to create broadcasted tensor".to_string(),
+                    })?;
+                    
+                    Ok(Self {
+                        data: result,
+                        shape,
+                        dtype: self.dtype,
+                        device: self.device.clone(),
+                    })
+                } else {
+                    Err(TensorError::ShapeMismatch {
+                        expected: vec![target_cols],
+                        actual: vec![self_size],
+                    })
                 }
+            },
+            (2, 3) => {
+                let self_rows = self_shape.dim(0).unwrap();
+                let self_cols = self_shape.dim(1).unwrap();
+                let target_batch = shape.dim(0).unwrap();
+                let target_rows = shape.dim(1).unwrap();
+                let target_cols = shape.dim(2).unwrap();
                 
-                let result = ArrayD::from_shape_vec(IxDyn(&[target_rows, target_cols]), result_data).map_err(|_| TensorError::BackendError {
-                    message: "Failed to create broadcasted tensor".to_string(),
-                })?;
+                if self_rows == target_rows && self_cols == target_cols {
+                    // Broadcast 2D matrix to 3D tensor by repeating along batch dimension
+                    let mut result_data = Vec::new();
+                    for _ in 0..target_batch {
+                        result_data.extend_from_slice(self.data.as_slice().unwrap());
+                    }
+                    
+                    let result = ArrayD::from_shape_vec(IxDyn(&[target_batch, target_rows, target_cols]), result_data).map_err(|_| TensorError::BackendError {
+                        message: "Failed to create broadcasted tensor".to_string(),
+                    })?;
+                    
+                    Ok(Self {
+                        data: result,
+                        shape,
+                        dtype: self.dtype,
+                        device: self.device.clone(),
+                    })
+                } else if self_rows == 1 && self_cols == target_cols {
+                    // Broadcast 1xN matrix to Bx1xN tensor
+                    let mut result_data = Vec::new();
+                    for _ in 0..target_batch {
+                        for _ in 0..target_rows {
+                            result_data.extend_from_slice(self.data.as_slice().unwrap());
+                        }
+                    }
+                    
+                    let result = ArrayD::from_shape_vec(IxDyn(&[target_batch, target_rows, target_cols]), result_data).map_err(|_| TensorError::BackendError {
+                        message: "Failed to create broadcasted tensor".to_string(),
+                    })?;
+                    
+                    Ok(Self {
+                        data: result,
+                        shape,
+                        dtype: self.dtype,
+                        device: self.device.clone(),
+                    })
+                } else {
+                    Err(TensorError::ShapeMismatch {
+                        expected: vec![target_rows, target_cols],
+                        actual: vec![self_rows, self_cols],
+                    })
+                }
+            },
+            (1, 3) => {
+                let self_size = self_shape.dim(0).unwrap();
+                let target_batch = shape.dim(0).unwrap();
+                let target_rows = shape.dim(1).unwrap();
+                let target_cols = shape.dim(2).unwrap();
                 
-                Ok(Self {
-                    data: result,
-                    shape,
-                    dtype: self.dtype,
-                    device: self.device.clone(),
-                })
-            } else {
-                Err(TensorError::ShapeMismatch {
-                    expected: vec![target_cols],
-                    actual: vec![self_size],
-                })
+                if self_size == target_cols {
+                    // Broadcast 1D vector to 3D tensor
+                    let mut result_data = Vec::new();
+                    for _ in 0..target_batch {
+                        for _ in 0..target_rows {
+                            result_data.extend_from_slice(self.data.as_slice().unwrap());
+                        }
+                    }
+                    
+                    let result = ArrayD::from_shape_vec(IxDyn(&[target_batch, target_rows, target_cols]), result_data).map_err(|_| TensorError::BackendError {
+                        message: "Failed to create broadcasted tensor".to_string(),
+                    })?;
+                    
+                    Ok(Self {
+                        data: result,
+                        shape,
+                        dtype: self.dtype,
+                        device: self.device.clone(),
+                    })
+                } else {
+                    Err(TensorError::ShapeMismatch {
+                        expected: vec![target_cols],
+                        actual: vec![self_size],
+                    })
+                }
+            },
+            _ => {
+                // For other cases, try generic broadcasting
+                CpuTensor::generic_broadcast_to(self, shape)
             }
-        } else {
-            // For other cases, return error for now
-            Err(TensorError::UnsupportedOperation {
-                op: format!("Broadcasting from {:?} to {:?} not implemented yet", self_shape, shape),
-            })
         }
     }
     
@@ -1127,6 +1445,7 @@ impl TensorBroadcast for CpuTensor {
             device: self.device.clone(),
         })
     }
+    
 }
 
 impl TensorMixedPrecision for CpuTensor {

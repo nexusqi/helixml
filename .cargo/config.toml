@@ -1,42 +1,127 @@
-# Cargo configuration for HelixML
-
 [build]
-# Use all available cores for compilation
-jobs = 0
+# Parallel compilation
+jobs = 8  # Use 8 cores (adjust based on your CPU)
+
+# Target directory
+target-dir = "target"
+
+[target.x86_64-unknown-linux-gnu]
+# Linux-specific settings
+rustflags = [
+    "-C", "target-cpu=native",
+    "-C", "target-feature=+crt-static",
+]
+
+[target.x86_64-apple-darwin]
+# macOS-specific settings
+rustflags = [
+    "-C", "target-cpu=native",
+]
+
+[target.x86_64-pc-windows-msvc]
+# Windows-specific settings
+rustflags = [
+    "-C", "target-cpu=native",
+]
+
+[env]
+# Environment variables for all builds
+RUST_BACKTRACE = "1"
+CARGO_TARGET_DIR = "target"
+
+# CUDA environment variables (if CUDA is available)
+CUDA_HOME = { value = "/usr/local/cuda", optional = true }
+LD_LIBRARY_PATH = { value = "/usr/local/cuda/lib64", optional = true }
+
+[net]
+# Network settings for cargo
+retry = 2
+git-fetch-with-cli = true
+
+[registries.crates-io]
+# Crates.io registry settings
+index = "https://github.com/rust-lang/crates.io-index"
+
+[source.crates-io]
+# Crates.io source settings (using default)
 
 [profile.dev]
-# Optimize dependencies for faster compilation
-opt-level = 1
+# Development profile
+opt-level = 0
 debug = true
 split-debuginfo = "unpacked"
+overflow-checks = true
 
 [profile.release]
-# Optimize for performance
+# Release profile
 opt-level = 3
 debug = false
-lto = true
+lto = "fat"
 codegen-units = 1
 panic = "abort"
-
-[profile.test]
-# Optimize tests for speed
-opt-level = 1
-debug = true
+strip = true
+overflow-checks = false
 
 [profile.bench]
-# Optimize benchmarks
+# Benchmark profile
 opt-level = 3
 debug = false
-lto = true
+lto = "fat"
 codegen-units = 1
 
-# Registry configuration
-[registry]
-default = "crates-io"
+[profile.test]
+# Test profile
+opt-level = 0
+debug = true
+overflow-checks = true
 
-# Source configuration
-[source.crates-io]
-replace-with = "vendored-sources"
+# Aliases for common commands
+[alias]
+# Build aliases
+b = "build"
+br = "build --release"
+bt = "build --tests"
+be = "build --examples"
 
-[source.vendored-sources]
-directory = "vendor"
+# Test aliases
+t = "test"
+tt = "test --"
+tc = "test --color=always"
+tv = "test --verbose"
+
+# Run aliases
+r = "run"
+rr = "run --release"
+re = "run --example"
+rb = "run --bin"
+
+# Check aliases
+c = "check"
+cc = "check --workspace"
+cf = "check --features"
+
+# Clippy aliases
+cl = "clippy"
+clw = "clippy --workspace"
+clf = "clippy --features"
+
+# Format aliases
+f = "fmt"
+fa = "fmt --all"
+
+# Clean aliases
+clean = "clean"
+clean-all = "clean --release"
+
+# Documentation aliases
+doc = "doc"
+docs = "doc --open"
+docw = "doc --workspace"
+
+# Benchmark aliases
+bench = "bench"
+benchw = "bench --workspace"
+
+# Audit aliases
+audit = "audit"
+audit-deny = "deny check"

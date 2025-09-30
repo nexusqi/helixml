@@ -1,0 +1,127 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Extract version from tag
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        
+        # Generate changelog from git history
+        echo "## What's Changed" >> CHANGELOG_RELEASE.md
+        git log $(git describe --tags --abbrev=0 HEAD^)..HEAD --pretty=format:"- %s (%h)" >> CHANGELOG_RELEASE.md
+        echo "" >> CHANGELOG_RELEASE.md
+        echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ github.event.before }}...v$VERSION" >> CHANGELOG_RELEASE.md
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ steps.changelog.outputs.VERSION }}
+        body_path: CHANGELOG_RELEASE.md
+        draft: false
+        prerelease: false
+
+  build-and-upload:
+    name: Build and Upload
+    runs-on: ${{ matrix.os }}
+    needs: create-release
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact-name: helix-ml-linux-x86_64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact-name: helix-ml-windows-x86_64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact-name: helix-ml-macos-x86_64
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        target: ${{ matrix.target }}
+
+    - name: Cache cargo build
+      uses: actions/cache@v3
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-target-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Build release
+      run: cargo build --release --workspace
+
+    - name: Create release archive
+      shell: bash
+      run: |
+        mkdir -p release
+        cp -r target/release/* release/
+        cp -r examples/ release/
+        cp -r configs/ release/
+        cp README.md LICENSE CHANGELOG.md release/
+        
+        if [[ "${{ runner.os }}" == "Windows" ]]; then
+          cd release && 7z a ../${{ matrix.artifact-name }}.zip . && cd ..
+        else
+          tar -czf ${{ matrix.artifact-name }}.tar.gz -C release .
+        fi
+
+    - name: Upload release asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./${{ matrix.artifact-name }}.${{ matrix.os == 'Windows' && 'zip' || 'tar.gz' }}
+        asset_name: ${{ matrix.artifact-name }}.${{ matrix.os == 'Windows' && 'zip' || 'tar.gz' }}
+        asset_content_type: application/octet-stream
+
+  publish-crates:
+    name: Publish Crates
+    runs-on: ubuntu-latest
+    needs: create-release
+    if: github.repository_owner == 'blackterrordistro'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install cargo-release
+      run: cargo install cargo-release --locked
+
+    - name: Publish to crates.io
+      run: cargo release --workspace --execute
+      env:
+        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

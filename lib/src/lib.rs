@@ -21,6 +21,9 @@ pub use nn::{
 // Re-export topological memory components
 pub use topo_memory::*;
 
+// Re-export meaning induction components
+pub use meanings::*;
+
 // Re-export geometric components
 pub use geometry::*;
 

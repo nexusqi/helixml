@@ -1,37 +1,63 @@
 # Rustfmt configuration for HelixML
 
-# Basic formatting
+# Basic formatting options
+edition = "2021"
 max_width = 100
+hard_tabs = false
 tab_spaces = 4
 newline_style = "Unix"
 use_small_heuristics = "Default"
 
-# Imports
+# Import formatting
 imports_granularity = "Crate"
 group_imports = "StdExternalCrate"
+imports_layout = "Mixed"
 reorder_imports = true
 reorder_modules = true
+reorder_impl_items = true
+
+# Function formatting
+fn_args_layout = "Tall"
+brace_style = "SameLineWhere"
+control_brace_style = "AlwaysSameLine"
+empty_item_single_line = true
+fn_single_line = false
+where_single_line = false
+
+# Struct and enum formatting
+struct_field_align_threshold = 0
+enum_discrim_align_threshold = 0
+struct_lit_single_line = true
+struct_lit_width = 18
+array_width = 60
+chain_width = 60
+single_line_if_else_max_width = 50
 
 # Comments
-wrap_comments = true
 comment_width = 80
+wrap_comments = true
 normalize_comments = true
+normalize_doc_attributes = true
 
-# Code style
-use_field_init_shorthand = true
-use_try_shorthand = true
+# String formatting
+format_strings = false
+format_code_in_doc_comments = false
+
+# Miscellaneous
+trailing_comma = "Vertical"
+trailing_semicolon = true
+use_field_init_shorthand = false
+use_try_shorthand = false
 force_explicit_abi = true
 empty_item_single_line = true
 struct_lit_single_line = true
 fn_single_line = false
 where_single_line = false
 
-# Advanced
-format_code_in_doc_comments = true
-format_strings = true
+# Macro formatting
 format_macro_matchers = true
-format_generated_files = false
+format_macro_bodies = true
 
-# Unstable features (requires nightly)
-# unstable_features = true
-# format_macro_bodies = true
+# Documentation
+normalize_doc_attributes = true
+format_code_in_doc_comments = false

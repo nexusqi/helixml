@@ -1,0 +1,64 @@
+# HelixML Development Environment Bash Configuration
+
+# Set up Rust environment
+export PATH="$HOME/.cargo/bin:$PATH"
+export RUST_BACKTRACE=1
+export CARGO_TARGET_DIR="/workspace/target"
+export RUST_LOG=debug
+
+# Aliases for common HelixML commands
+alias hb="cargo build --workspace"
+alias ht="cargo test --workspace"
+alias hr="cargo run"
+alias hc="cargo check --workspace"
+alias hf="cargo fmt --all"
+alias hl="cargo clippy --workspace -- -D warnings"
+
+# Example aliases
+alias hsimple="cargo run --example simple_example"
+alias hssm="cargo run --example ssm_example"
+alias hhyena="cargo run --example hyena_example"
+alias hdemo="cargo run -p ssm_byte_lm demo"
+
+# Training phase aliases
+alias htrain-a="cargo run -p ssm_byte_lm train A"
+alias htrain-b="cargo run -p ssm_byte_lm train B"
+alias htrain-c="cargo run -p ssm_byte_lm train C"
+
+# Benchmark aliases
+alias hbench="cargo bench --workspace"
+alias hbench-tensor="cargo bench -p tensor-core"
+alias hbench-meanings="cargo bench -p meanings"
+
+# Development aliases
+alias htest-integration="cargo test --workspace --test '*'"
+alias haudit="cargo audit"
+alias hdeny="cargo deny check"
+alias hcoverage="cargo tarpaulin --out Html"
+
+# Documentation aliases
+alias hdocs="cargo doc --workspace --open"
+alias hbook="cd docs/book && mdbook serve --open"
+
+# Git aliases
+alias gs="git status"
+alias ga="git add"
+alias gc="git commit"
+alias gp="git push"
+alias gl="git log --oneline"
+
+# Welcome message
+echo "🌀 HelixML Development Environment Ready!"
+echo ""
+echo "Quick commands:"
+echo "  hb       - Build workspace"
+echo "  ht       - Run tests"
+echo "  hsimple  - Run simple example"
+echo "  hdemo    - Run meaning induction demo"
+echo "  htrain-a - Train phase A (Bootstrap)"
+echo "  htrain-b - Train phase B (Consolidation)"
+echo "  htrain-c - Train phase C (Meaning-first)"
+echo "  hdocs    - Open documentation"
+echo "  hbook    - Serve mdbook documentation"
+echo ""
+echo "For more information, see docs/README.md"

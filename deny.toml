@@ -1,0 +1,80 @@
+# Cargo deny configuration for dependency management and security
+
+[advisories]
+# Check for security vulnerabilities
+vulnerability = "deny"
+# Check for unmaintained crates
+unmaintained = "warn"
+# Check for unsound crates
+unsound = "deny"
+# Ignore specific advisories
+ignore = [
+    # Add specific advisory IDs to ignore here if needed
+]
+
+# Advisory database configuration
+db-path = "~/.cargo/advisory-db"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+
+[bans]
+# Multiple versions of the same crate
+multiple-versions = "deny"
+# Wildcard version requirements
+wildcards = "deny"
+# Crates that should be denied
+deny = [
+    # Add crates to deny here
+]
+
+# Crates that should be allowed even if they match deny patterns
+allow = [
+    # Add crates to allow here
+]
+
+# Allow specific features for specific crates
+[allow-features]
+allow = [
+    # Add features to allow here
+]
+
+[licenses]
+# Default license policy
+default = "deny"
+# Copyleft licenses policy
+copyleft = "deny"
+# Allow specific licenses
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-DFS-2016",
+    "Zlib",
+]
+# Exempt specific crates from license checks
+exceptions = [
+    # Add crate exceptions here if needed
+]
+
+[licenses.clarify]
+# Clarify license information for crates
+clarify = true
+# Use SPDX expressions
+expression = "MIT OR Apache-2.0"
+# Additional license information
+additional-license-text = [
+    # Add additional license text here if needed
+]
+
+[sources]
+# Unknown sources policy
+unknown-registry = "deny"
+unknown-git = "deny"
+# Allow specific registries
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# Allow specific git sources
+allow-git = [
+    # Add allowed git sources here
+]

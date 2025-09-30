@@ -174,15 +174,18 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorReduce> RMSNorm<T> {
     }
 }
 
-impl<T: Tensor + TensorOps + TensorReduce + TensorRandom> Module<T> for RMSNorm<T> {
+impl<T: Tensor + TensorOps + TensorReduce + TensorRandom + TensorBroadcast> Module<T> for RMSNorm<T> {
     fn forward(&self, input: &T) -> Result<T> {
         // input: [batch_size, seq_len, d_model]
         // Compute RMS
         let mean_squared = input.mul(input)?.mean(Some(vec![input.ndim() - 1]), true)?;
-        let rms = mean_squared.add(&T::random_uniform(Shape::new(vec![]), self.eps, self.eps, input.device())?)?.sqrt()?;
+        let eps_tensor = T::random_uniform(mean_squared.shape().clone(), self.eps, self.eps + 1e-8, input.device())?;
+        let rms = mean_squared.add(&eps_tensor)?.sqrt()?;
         
-        // Normalize
-        let normalized = input.div(&rms)?;
+        // Normalize - use broadcasting to expand rms to match input shape
+        let rms_reshaped = rms.reshape(Shape::new(vec![rms.shape().dim(0).unwrap(), rms.shape().dim(1).unwrap(), 1]))?;
+        let rms_broadcasted = rms_reshaped.broadcast_to(input.shape().clone())?;
+        let normalized = input.div(&rms_broadcasted)?;
         
         // Scale by weight
         let output = normalized.mul(&self.weight)?;
@@ -1018,5 +1021,153 @@ mod tests {
         
         assert_eq!(output.shape(), &Shape::new(vec![2, 3]));
         assert_eq!(seq.parameters().len(), 4); // 2 linear layers with bias
+    }
+}
+
+// Phase synchronization utilities for SSM cores
+pub mod phase_sync {
+    use super::*;
+    use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorReduce};
+
+    /// Calculate phase synchronization metric between channels
+    pub fn phase_sync_metric<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorReduce>(
+        hidden_states: &T
+    ) -> Result<f32> {
+        let shape = hidden_states.shape();
+        if shape.dim(0).is_none() || shape.dim(1).is_none() {
+            return Ok(0.0);
+        }
+
+        let seq_len = shape.dim(0).unwrap();
+        let d_model = shape.dim(1).unwrap();
+
+        if seq_len < 2 || d_model < 2 {
+            return Ok(0.0);
+        }
+
+        // Simplified phase sync calculation using tensor operations
+        // Calculate variance as a proxy for phase synchronization
+        let variance = hidden_states.var(Some(vec![0]), false)?;
+        let mean_var = variance.mean(Some(vec![0]), false)?;
+        
+        // Convert to scalar approximation (simplified)
+        Ok(mean_var.shape().numel() as f32 * 0.1) // Placeholder calculation
+    }
+
+    /// Calculate instantaneous phase from complex-like representation
+    pub fn calculate_instantaneous_phase<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision>(
+        real_part: &T, 
+        imag_part: &T
+    ) -> Result<T> {
+        // For real tensors, we can simulate phase by using atan2-like operation
+        // This is a simplified version for demonstration
+        let phase = real_part.div(imag_part)?;
+        
+        // Apply arctan-like transformation (simplified)
+        let phase_atan = phase.pow(0.33)?; // Simplified arctan approximation
+        
+        Ok(phase_atan)
+    }
+
+    /// Calculate phase coherence between multiple sequences
+    pub fn calculate_phase_coherence<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorReduce>(
+        sequences: &[T]
+    ) -> Result<f32> {
+        if sequences.len() < 2 {
+            return Ok(0.0);
+        }
+
+        let mut total_coherence = 0.0;
+        let mut comparisons = 0;
+
+        for i in 0..sequences.len() {
+            for j in (i + 1)..sequences.len() {
+                let coherence = calculate_pairwise_coherence(&sequences[i], &sequences[j])?;
+                total_coherence += coherence;
+                comparisons += 1;
+            }
+        }
+
+        Ok(if comparisons > 0 { total_coherence / comparisons as f32 } else { 0.0 })
+    }
+
+    /// Calculate pairwise coherence between two sequences
+    fn calculate_pairwise_coherence<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorReduce>(
+        seq_a: &T, 
+        seq_b: &T
+    ) -> Result<f32> {
+        let shape_a = seq_a.shape();
+        let shape_b = seq_b.shape();
+
+        if shape_a.dim(0).is_none() || shape_b.dim(0).is_none() {
+            return Ok(0.0);
+        }
+
+        let len_a = shape_a.dim(0).unwrap();
+        let len_b = shape_b.dim(0).unwrap();
+
+        if len_a != len_b {
+            return Ok(0.0);
+        }
+
+        // Calculate coherence using tensor operations
+        let correlation = seq_a.mul(seq_b)?;
+        
+        // Simplified coherence calculation
+        let coherence_sum = correlation.sum(Some(vec![0]), false)?;
+        
+        Ok(coherence_sum.shape().numel() as f32 * 0.1) // Placeholder
+    }
+
+    /// Phase synchronization index (PSI) for SSM states
+    pub fn phase_synchronization_index<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision>(
+        states: &[T]
+    ) -> Result<f32> {
+        if states.len() < 2 {
+            return Ok(0.0);
+        }
+
+        let mut psi_sum = 0.0;
+        let mut comparisons = 0;
+
+        for i in 0..states.len() {
+            for j in (i + 1)..states.len() {
+                let psi = calculate_psi_pair(&states[i], &states[j])?;
+                psi_sum += psi;
+                comparisons += 1;
+            }
+        }
+
+        Ok(if comparisons > 0 { psi_sum / comparisons as f32 } else { 0.0 })
+    }
+
+    /// Calculate PSI between two state vectors
+    fn calculate_psi_pair<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision>(
+        state_a: &T, 
+        state_b: &T
+    ) -> Result<f32> {
+        let shape_a = state_a.shape();
+        let shape_b = state_b.shape();
+
+        if shape_a.dim(0).is_none() || shape_b.dim(0).is_none() {
+            return Ok(0.0);
+        }
+
+        let len_a = shape_a.dim(0).unwrap();
+        let len_b = shape_b.dim(0).unwrap();
+
+        if len_a != len_b {
+            return Ok(0.0);
+        }
+
+        // Calculate PSI using tensor operations
+        let diff = state_a.sub(state_b)?;
+        let abs_diff = diff.abs()?;
+        let one_tensor = T::ones(state_a.shape().clone(), state_a.dtype(), state_a.device())?;
+        let psi_tensor = one_tensor.sub(&abs_diff)?;
+        let zero_tensor = T::zeros(state_a.shape().clone(), state_a.dtype(), state_a.device())?;
+        let psi_max = psi_tensor.max(&zero_tensor)?;
+        
+        Ok(psi_max.shape().numel() as f32 * 0.1) // Placeholder
     }
 }

@@ -1,0 +1,191 @@
+# 🌀 HelixML Meaning Induction Bootstrap Configuration
+# Configuration for SIM/MIL system with U/I/S links and Stability formula
+
+[bootstrap]
+# Enable/disable meaning induction bootstrap
+enabled = true
+
+# Co-occurrence window for PMI calculation
+window = 256
+
+# PMI threshold for creating U-links
+pmi_threshold = 0.1
+
+# Steps between replay operations
+replay_period = 100
+
+# U-link pool size for replay
+u_pool_size = 1000
+
+# Stability thresholds
+[stability]
+# Threshold for U → I transition
+theta_low = 0.3
+
+# Threshold for I → S transition  
+theta_high = 0.7
+
+# Stability decay rate per step
+decay = 0.01
+
+# Phase synchronization parameters
+[phase]
+# Weight for phase sync in stability calculation
+phi_weight = 0.2
+
+# Minimum phase correlation for valid sync
+min_phase_correlation = 0.1
+
+# Phase coherence window size
+coherence_window = 32
+
+# Training phases configuration
+[phases]
+# Phase A: Bootstrap (epochs 1-2)
+[bootstrap.phase_a]
+enabled = true
+epochs = 2
+pmi_threshold = 0.1
+replay_period = 50
+theta_low = 0.2
+theta_high = 0.6
+
+# Phase B: Consolidation (epochs 3-6)
+[bootstrap.phase_b]
+enabled = true
+epochs = 4
+pmi_threshold = 0.15
+replay_period = 75
+theta_low = 0.3
+theta_high = 0.7
+moe_enabled = true
+
+# Phase C: Meaning-first (epochs 7+)
+[bootstrap.phase_c]
+enabled = false  # Bootstrap disabled, pure topological memory
+epochs = 999     # Continue indefinitely
+topo_memory_only = true
+retrieval_mode = "topo_memory"
+
+# Memory system configuration
+[memory]
+# M0 Motifs configuration
+[m0_motifs]
+max_motif_length = 5
+similarity_threshold = 0.7
+min_frequency = 2
+
+# M1 Cycles configuration
+[m1_cycles]
+detection_threshold = 0.6
+max_cycle_length = 20
+stability_threshold = 0.5
+
+# M2 Stable Cores configuration
+[m2_cores]
+stability_threshold = 0.8
+max_core_size = 50
+min_persistence = 0.9
+
+# Link system configuration
+[links]
+# Maximum links per node type
+max_u_links_per_node = 10
+max_i_links_per_node = 20
+max_s_links_per_node = 50
+
+# Link decay rates
+u_link_decay = 0.95
+i_link_decay = 0.98
+s_link_decay = 0.99
+
+# Performance targets
+[performance]
+# Target FLOPs per KB (lower is better)
+target_flops_per_kb = 1000
+
+# Target DRAM per KB (lower is better)
+target_dram_per_kb = 512
+
+# Target latency p95 in ms
+target_latency_p95 = 50
+
+# Context length targets
+min_context_length = 256000  # 256k tokens
+max_context_length = 1000000 # 1M tokens
+
+# Monitoring and metrics
+[monitoring]
+# Enable detailed logging
+verbose = true
+
+# Metrics collection interval (steps)
+metrics_interval = 100
+
+# Save memory statistics to file
+save_stats = true
+stats_file = "memory_stats.json"
+
+# Enable performance profiling
+profile_performance = false
+profile_file = "performance_profile.json"
+
+# Experimental features
+[experimental]
+# Enable geometric preprocessing
+twistor_enabled = false
+
+# Enable E8 symmetry tying
+e8_symmetry_enabled = false
+
+# Enable MERA hierarchical access
+mera_enabled = false
+
+# Enable CDT scheduling
+cdt_scheduling_enabled = false
+
+# Advanced stability formula tuning
+[stability.advanced]
+# Weight for repetition signal (R)
+r_weight = 0.3
+
+# Weight for energy signal (E)  
+e_weight = 0.2
+
+# Weight for connectivity signal (C)
+c_weight = 0.3
+
+# Weight for phase signal (Φ)
+phi_weight = 0.2
+
+# Nonlinear transformations
+use_ln_1p = true          # Use ln(1+x) for R and C
+use_exponential_decay = true  # Use exponential decay
+replay_boost_factor = 0.1     # Boost factor during replay
+
+# Domain-specific configurations
+[domains]
+# Default configuration
+[domains.default]
+bootstrap_enabled = true
+context_length = 256000
+
+# Text processing
+[domains.text]
+bootstrap_enabled = true
+context_length = 512000
+pmi_threshold = 0.08
+window = 512
+
+# Code processing  
+[domains.code]
+bootstrap_enabled = true
+context_length = 128000
+pmi_threshold = 0.12
+window = 256
+
+# Scientific data
+[domains.scientific]
+bootstrap_enabled = false  # Use pre-trained patterns
+context_length = 1000000
+topo_memory_only = true

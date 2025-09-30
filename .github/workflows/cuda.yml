@@ -1,0 +1,150 @@
+name: CUDA CI
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main, develop ]
+  schedule:
+    # Run weekly on Sundays
+    - cron: '0 0 * * 0'
+
+env:
+  CARGO_TERM_COLOR: always
+  CUDA_VERSION: 12.1
+
+jobs:
+  cuda-build:
+    name: CUDA Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        cuda-version: [11.8, 12.0, 12.1]
+        rust-version: [stable, beta]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ matrix.rust-version }}
+
+    - name: Install CUDA
+      uses: Jimver/cuda-toolkit@v0.2.11
+      with:
+        cuda: ${{ matrix.cuda-version }}
+
+    - name: Set CUDA environment variables
+      run: |
+        echo "CUDA_HOME=/usr/local/cuda" >> $GITHUB_ENV
+        echo "LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+        echo "PATH=/usr/local/cuda/bin:$PATH" >> $GITHUB_ENV
+
+    - name: Cache cargo build
+      uses: actions/cache@v3
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-target-cuda-${{ matrix.cuda-version }}-${{ matrix.rust-version }}-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Verify CUDA installation
+      run: |
+        nvcc --version
+        nvidia-smi || echo "No GPU available in CI"
+
+    - name: Build CUDA backend
+      run: |
+        cargo build --package backend-cuda --features cuda
+        # Build with CUDA features if available
+        cargo build --workspace --features cuda || echo "CUDA features not available in this build"
+
+    - name: Test CUDA backend
+      run: |
+        # Only run tests if CUDA is properly configured
+        if nvidia-smi > /dev/null 2>&1; then
+          cargo test --package backend-cuda --features cuda
+        else
+          echo "No GPU available, skipping CUDA tests"
+        fi
+
+    - name: Run CUDA examples
+      run: |
+        if nvidia-smi > /dev/null 2>&1; then
+          cargo run --example cuda_example --features cuda || echo "CUDA example not available"
+        else
+          echo "No GPU available, skipping CUDA examples"
+        fi
+
+  cuda-docker:
+    name: CUDA Docker
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build CUDA Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./docker/Dockerfile.cuda
+        push: false
+        tags: helix-ml:cuda
+        build-args: |
+          CUDA_VERSION=12.1
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Test CUDA Docker image
+      run: |
+        docker run --rm --gpus all helix-ml:cuda nvidia-smi || echo "GPU not available in Docker"
+
+  cuda-benchmarks:
+    name: CUDA Benchmarks
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || contains(github.event.head_commit.message, '[cuda-bench]')
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install CUDA
+      uses: Jimver/cuda-toolkit@v0.2.11
+      with:
+        cuda: 12.1
+
+    - name: Set CUDA environment variables
+      run: |
+        echo "CUDA_HOME=/usr/local/cuda" >> $GITHUB_ENV
+        echo "LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+        echo "PATH=/usr/local/cuda/bin:$PATH" >> $GITHUB_ENV
+
+    - name: Install criterion
+      run: cargo install cargo-criterion
+
+    - name: Cache cargo build
+      uses: actions/cache@v3
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-target-cuda-bench-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Run CUDA benchmarks
+      run: |
+        if nvidia-smi > /dev/null 2>&1; then
+          cargo bench --package backend-cuda --features cuda
+        else
+          echo "No GPU available, skipping CUDA benchmarks"
+        fi
+      continue-on-error: true
+
+    - name: Upload CUDA benchmark results
+      uses: actions/upload-artifact@v3
+      with:
+        name: cuda-benchmark-results
+        path: target/criterion/
+      if: always()

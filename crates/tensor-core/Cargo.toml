@@ -24,3 +24,8 @@ rayon.workspace = true
 [dev-dependencies]
 criterion.workspace = true
 proptest.workspace = true
+backend-cpu = { path = "../backend-cpu" }
+
+[[bench]]
+name = "tensor_benchmarks"
+harness = false

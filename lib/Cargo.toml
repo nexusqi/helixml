@@ -13,16 +13,11 @@ backend-cpu = { path = "../crates/backend-cpu" }
 autograd = { path = "../crates/autograd" }
 nn = { path = "../crates/nn" }
 optim = { path = "../crates/optim" }
-data = { path = "../crates/data" }
-io = { path = "../crates/io" }
-moe = { path = "../crates/moe" }
-quant = { path = "../crates/quant" }
-rev = { path = "../crates/rev" }
 serve = { path = "../crates/serve" }
 topo-memory = { path = "../crates/topo-memory" }
+meanings = { path = "../crates/meanings" }
 geometry = { path = "../crates/geometry" }
 scheduling = { path = "../crates/scheduling" }
-utils = { path = "../crates/utils" }
 
 # Workspace dependencies
 serde = { workspace = true }

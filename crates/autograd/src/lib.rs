@@ -194,6 +194,8 @@ pub mod losses {
 mod tests {
     use super::*;
     use backend_cpu::CpuTensor;
+    use tensor_core::{Shape, Device};
+    use tensor_core::tensor::TensorRandom;
     
     #[test]
     fn test_simple_autograd() {

@@ -1,0 +1,8 @@
+[package]
+name = "minimal_example"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tensor-core = { path = "../../crates/tensor-core" }
+backend-cpu = { path = "../../crates/backend-cpu" }
