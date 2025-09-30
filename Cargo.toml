@@ -4,8 +4,10 @@ members = [
     "lib",
     "crates/tensor-core",
     "crates/backend-cpu", 
-    "crates/autograd",
-    "crates/nn",
+        "crates/backend-cuda",
+        "crates/autograd",
+        "crates/nn",
+        "crates/data-pipeline",
     "crates/optim",
     "crates/topo-memory",
     "crates/meanings",
@@ -13,7 +15,20 @@ members = [
     "crates/scheduling",
     "crates/serve",
     "examples/minimal_example",
-    "examples/topo_memory_example"
+    "examples/simple_example",
+    "examples/ssm_example",
+    "examples/topo_memory_example",
+    "examples/advanced_example",
+    "examples/hyena_example",
+    "examples/broadcasting_example",
+    "examples/checkpointing_example",
+    "examples/experimental_model",
+    "examples/hyena_span_infilling",
+        "examples/mixed_precision_example",
+        "examples/ssm_byte_lm",
+        "examples/cuda_example",
+        "examples/advanced_autograd_example",
+    "benches"
 ]
 
 

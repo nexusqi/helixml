@@ -1,0 +1,13 @@
+[package]
+name = "cuda_example"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description.workspace = true
+
+[dependencies]
+tensor-core = { path = "../../crates/tensor-core" }
+backend-cpu = { path = "../../crates/backend-cpu" }
+backend-cuda = { path = "../../crates/backend-cuda", optional = true }

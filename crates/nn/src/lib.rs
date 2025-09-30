@@ -183,12 +183,23 @@ impl<T: Tensor + TensorOps + TensorReduce + TensorRandom + TensorBroadcast> Modu
         let rms = mean_squared.add(&eps_tensor)?.sqrt()?;
         
         // Normalize - use broadcasting to expand rms to match input shape
-        let rms_reshaped = rms.reshape(Shape::new(vec![rms.shape().dim(0).unwrap(), rms.shape().dim(1).unwrap(), 1]))?;
-        let rms_broadcasted = rms_reshaped.broadcast_to(input.shape().clone())?;
+        // For 3D input [batch, seq, d_model], rms is [batch, seq]
+        // We need to expand it to [batch, seq, 1] then broadcast to [batch, seq, d_model]
+        let input_shape = input.shape();
+        let rms_shape = rms.shape();
+        
+        // Reshape rms to add a dimension for broadcasting
+        let mut expanded_shape = rms_shape.as_slice().to_vec();
+        expanded_shape.push(1);
+        let rms_expanded = rms.reshape(Shape::new(expanded_shape))?;
+        
+        // Broadcast to match input shape
+        let rms_broadcasted = rms_expanded.broadcast_to(input_shape.clone())?;
         let normalized = input.div(&rms_broadcasted)?;
         
-        // Scale by weight
-        let output = normalized.mul(&self.weight)?;
+        // Scale by weight - broadcast weight to match input shape
+        let weight_broadcasted = self.weight.broadcast_to(input_shape.clone())?;
+        let output = normalized.mul(&weight_broadcasted)?;
         
         Ok(output)
     }

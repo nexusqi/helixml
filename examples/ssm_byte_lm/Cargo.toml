@@ -8,3 +8,8 @@ repository.workspace = true
 description.workspace = true
 
 [dependencies]
+tensor-core = { path = "../../crates/tensor-core" }
+backend-cpu = { path = "../../crates/backend-cpu" }
+nn = { path = "../../crates/nn" }
+topo-memory = { path = "../../crates/topo-memory" }
+meanings = { path = "../../crates/meanings" }

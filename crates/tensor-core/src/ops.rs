@@ -1,6 +1,5 @@
 //! Tensor operations module
 
-use crate::{DType, Device, Shape, Result, TensorError};
 
 /// Binary operations
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

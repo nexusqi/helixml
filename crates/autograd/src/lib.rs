@@ -1,11 +1,22 @@
 //! 🌀 HelixML Autograd
 //! 
-//! Automatic differentiation for SSM/Hyena architectures with topological memory.
+//! Advanced automatic differentiation for SSM/Hyena architectures with topological memory.
+//! Features gradient accumulation, clipping, mixed precision, and memory optimization.
 
 use tensor_core::{Tensor, Result, TensorError};
 use tensor_core::tensor::{TensorOps, TensorStats, TensorReduce};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+
+// Advanced autograd modules
+pub mod advanced;
+pub mod memory;
+pub mod optimizer;
+
+// Re-export key types
+pub use advanced::{GradientAccumulator, GradientClipper, MixedPrecisionTrainer, CheckpointTrainer, TrainingState, TrainingStepResult};
+pub use memory::{TensorMemoryPool, LazyGradientComputer, MemoryMonitor, MemoryStats};
+pub use optimizer::{IntegratedTrainer, AdvancedTrainer, LRScheduler, TrainingStats};
 
 /// Differentiable tensor with gradient tracking
 #[derive(Debug, Clone)]

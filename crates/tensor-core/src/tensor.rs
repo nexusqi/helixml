@@ -1,6 +1,6 @@
 //! Core tensor trait and operations
 
-use crate::{DType, Device, Shape, Result, TensorError};
+use crate::{DType, Device, Shape, Result};
 use serde::{Deserialize, Serialize};
 
 /// Core tensor trait for all tensor implementations

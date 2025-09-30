@@ -1,0 +1,20 @@
+[package]
+name = "helix-ml-benches"
+version = "0.1.0"
+edition = "2021"
+
+[[bench]]
+name = "tensor_operations"
+harness = false
+path = "src/tensor_operations.rs"
+
+[[bench]]
+name = "neural_networks"
+harness = false
+path = "src/neural_networks.rs"
+
+[dependencies]
+criterion = "0.5"
+tensor-core = { path = "../crates/tensor-core" }
+backend-cpu = { path = "../crates/backend-cpu" }
+nn = { path = "../crates/nn" }

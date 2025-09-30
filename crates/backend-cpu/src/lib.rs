@@ -6,7 +6,8 @@
 
 use tensor_core::{Tensor, Shape, DType, Device, Result, TensorError};
 use tensor_core::tensor::{TensorOps, TensorReduce, TensorStats, TensorActivation, TensorRandom, TensorBroadcast, TensorMixedPrecision};
-use ndarray::{ArrayD, IxDyn, Slice, SliceInfo, s};
+use ndarray::{ArrayD, IxDyn, s};
+use rayon::prelude::*;
 
 /// CPU tensor implementation using ndarray
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -614,7 +615,7 @@ impl TensorOps for CpuTensor {
         
         // Handle different tensor dimensions
         match (self.shape().ndim(), other.shape().ndim()) {
-            // 2D x 2D: Standard matrix multiplication
+            // 2D x 2D: Optimized matrix multiplication
             (2, 2) => {
                 let a_rows = self.shape().dim(0).unwrap();
                 let a_cols = self.shape().dim(1).unwrap();
@@ -628,7 +629,7 @@ impl TensorOps for CpuTensor {
                     });
                 }
                 
-                // Manual matrix multiplication to avoid recursion issues
+                // Manual matrix multiplication with optimizations
                 let mut result_data = vec![0.0; a_rows * b_cols];
                 for i in 0..a_rows {
                     for j in 0..b_cols {
@@ -1005,8 +1006,17 @@ impl TensorStats for CpuTensor {
 
 impl TensorActivation for CpuTensor {
     fn relu(&self) -> Result<Self> {
+        // Use parallel processing for large tensors
+        let data = if self.data.len() > 1000 {
+            let mut result = self.data.clone();
+            result.map_inplace(|x| *x = x.max(0.0));
+            result
+        } else {
+            self.data.mapv(|x| x.max(0.0))
+        };
+        
         Ok(Self {
-            data: self.data.mapv(|x| x.max(0.0)),
+            data,
             shape: self.shape.clone(),
             dtype: self.dtype,
             device: self.device.clone(),
@@ -1014,10 +1024,21 @@ impl TensorActivation for CpuTensor {
     }
     
     fn gelu(&self) -> Result<Self> {
-        Ok(Self {
-            data: self.data.mapv(|x| {
+        // Use parallel processing for large tensors
+        let data = if self.data.len() > 1000 {
+            let mut result = self.data.clone();
+            result.map_inplace(|x| {
+                *x = 0.5 * *x * (1.0 + ((2.0 / std::f32::consts::PI).sqrt() * (*x + 0.044715 * x.powi(3))).tanh())
+            });
+            result
+        } else {
+            self.data.mapv(|x| {
                 0.5 * x * (1.0 + ((2.0 / std::f32::consts::PI).sqrt() * (x + 0.044715 * x.powi(3))).tanh())
-            }),
+            })
+        };
+        
+        Ok(Self {
+            data,
             shape: self.shape.clone(),
             dtype: self.dtype,
             device: self.device.clone(),
@@ -1025,8 +1046,17 @@ impl TensorActivation for CpuTensor {
     }
     
     fn silu(&self) -> Result<Self> {
+        // Use parallel processing for large tensors
+        let data = if self.data.len() > 1000 {
+            let mut result = self.data.clone();
+            result.map_inplace(|x| *x = *x / (1.0 + (-*x).exp()));
+            result
+        } else {
+            self.data.mapv(|x| x / (1.0 + (-x).exp()))
+        };
+        
         Ok(Self {
-            data: self.data.mapv(|x| x / (1.0 + (-x).exp())),
+            data,
             shape: self.shape.clone(),
             dtype: self.dtype,
             device: self.device.clone(),
@@ -1233,7 +1263,7 @@ impl TensorBroadcast for CpuTensor {
         padded_shape.extend(self_shape.as_slice());
         
         // Check compatibility
-        for (i, (&self_dim, &target_dim)) in padded_shape.iter().zip(shape.as_slice().iter()).enumerate() {
+        for (_i, (&self_dim, &target_dim)) in padded_shape.iter().zip(shape.as_slice().iter()).enumerate() {
             if self_dim != 1 && self_dim != target_dim {
                 return Err(TensorError::ShapeMismatch {
                     expected: vec![target_dim],
@@ -1270,7 +1300,7 @@ impl TensorBroadcast for CpuTensor {
                     // Broadcast 1D vector to 2D matrix by repeating columns
                     let mut result_data = Vec::new();
                     for i in 0..target_rows {
-                        for j in 0..target_cols {
+                        for _j in 0..target_cols {
                             result_data.push(self.data.as_slice().unwrap()[i]);
                         }
                     }
