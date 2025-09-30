@@ -92,7 +92,7 @@ jobs:
 
     - name: Upload coverage to Codecov
       if: matrix.rust == 'stable'
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
         file: ./coverage/tarpaulin-report.html
         flags: unittests
