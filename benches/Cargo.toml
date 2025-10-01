@@ -14,7 +14,7 @@ harness = false
 path = "src/neural_networks.rs"
 
 [dependencies]
-criterion = "0.5"
+criterion = "0.7"
 tensor-core = { path = "../crates/tensor-core" }
 backend-cpu = { path = "../crates/backend-cpu" }
 nn = { path = "../crates/nn" }
