@@ -49,13 +49,19 @@ cargo run -p enhanced_topo_memory_example
 cargo run -p adaptive_scheduler_example
 ```
 
-### 6. Synthetic Data Generation
+### 6. Multimodal Processing
+
+```bash
+cargo run -p multimodal_example
+```
+
+### 7. Synthetic Data Generation
 
 ```bash
 cargo run -p synthetic_data_example
 ```
 
-### 7. CUDA Backend (if CUDA is available)
+### 8. CUDA Backend (if CUDA is available)
 
 ```bash
 cargo run -p cuda_example
@@ -110,6 +116,7 @@ helixml/
 │   ├── optim/                # Optimizers
 │   ├── training/             # Training system
 │   ├── topo-memory/          # Enhanced topological memory
+│   ├── multimodal/           # Universal multimodal processing
 │   ├── adaptive-scheduler/   # Multi-device scheduling
 │   └── synthetic-data/       # Synthetic data generation
 ├── examples/                 # Example applications
@@ -125,11 +132,17 @@ helixml/
 - **M2 (Stable Cores)**: Long-term knowledge extraction with adaptive consolidation
 - **Phase Synchronization**: SSM core synchronization utilities
 
-### 🎯 Adaptive Scheduling
-- **Multi-Device Orchestration**: CPU, CUDA device management
-- **Load Balancing**: Multiple strategies with adaptive optimization
-- **Resource Monitoring**: Memory, compute, bandwidth tracking
-- **Policy Management**: Flexible scheduling policies
+### 🌐 Multimodal Processing
+- **Universal Data Support**: Text, Images, Audio, Video, 3D Point Clouds
+- **Auto-Modality Detection**: Automatic detection of data types and formats
+- **Intelligent Processing**: Smart device selection and resource optimization
+- **Cross-Modal Alignment**: Temporal, spatial, and semantic alignment
+
+### 🎯 Intelligent Resource Management
+- **Auto-Device Detection**: CPU, CUDA, OpenCL, Metal, Vulkan support
+- **Smart Device Selection**: Optimal device selection based on workload
+- **Resource Optimization**: 6 strategies for different optimization goals
+- **Real-time Monitoring**: Performance metrics and alerting system
 
 ### 🎲 Synthetic Data Generation
 - **Multi-Modal Generators**: Sequences, Images, Graphs, Time Series, Text

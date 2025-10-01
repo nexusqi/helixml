@@ -37,6 +37,20 @@
   - E8 Symmetry Tying: E8 group symmetries with breaking detection
   - MERA Hierarchical Access: Hierarchical memory access with isometries
 
+- **Multimodal Data Processing**:
+  - Universal Data Support: Text, Images, Audio, Video, 3D Point Clouds
+  - Auto-Modality Detection: Automatic detection of data types and formats
+  - Intelligent Processing: Smart device selection and resource optimization
+  - Cross-Modal Alignment: Temporal, spatial, and semantic alignment
+  - Mixed Modality: Combined processing of different data types
+
+- **Intelligent Resource Management**:
+  - Auto-Device Detection: CPU, CUDA, OpenCL, Metal, Vulkan support
+  - Smart Device Selection: Optimal device selection based on workload
+  - Resource Optimization: 6 strategies (Performance, Efficiency, Balanced, Memory, Latency, Adaptive)
+  - Real-time Monitoring: Performance metrics and alerting system
+  - Auto-Adaptation: Dynamic adaptation to workload changes
+
 - **Adaptive Scheduling System**:
   - Multi-Device Orchestration: CPU, CUDA device management
   - Load Balancing: Round Robin, Least Loaded, Weighted, Adaptive strategies
@@ -257,6 +271,45 @@ fn main() -> Result<()> {
 }
 ```
 
+### Multimodal Processing Example
+
+```rust
+use helix_ml::*;
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    let device = Device::cpu();
+    
+    // Create intelligent multimodal processor
+    let mut processor = IntelligentProcessor::<CpuTensor>::new(device);
+    
+    // Process any type of data automatically
+    let text_data = b"Hello, this is sample text!";
+    let text_result = processor.process_auto(text_data).await?;
+    println!("Text processing: {:?}", text_result.modality);
+    
+    // Process image data (PNG header)
+    let image_data = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR...";
+    let image_result = processor.process_auto(image_data).await?;
+    println!("Image processing: {:?}", image_result.modality);
+    
+    // Process audio data (WAV header)
+    let audio_data = b"RIFF\x24\x08\x00\x00WAVEfmt...";
+    let audio_result = processor.process_auto(audio_data).await?;
+    println!("Audio processing: {:?}", audio_result.modality);
+    
+    // Intelligent device selection and resource optimization
+    let optimal_device = processor.select_optimal_device(
+        &Modality::Image, 
+        1024 * 1024, 
+        &ProcessingRequirements::default()
+    ).await?;
+    println!("Optimal device: {}", optimal_device);
+    
+    Ok(())
+}
+```
+
 ## 🏗️ Architecture
 
 ### Core Crates
@@ -271,6 +324,7 @@ fn main() -> Result<()> {
 ### Advanced Crates
 - `topo-memory`: Enhanced topological memory system
 - `geometry`: Geometric processing components
+- `multimodal`: Universal multimodal data processing
 - `adaptive-scheduler`: Multi-device adaptive scheduling
 - `synthetic-data`: Synthetic data generation and verification
 
@@ -308,6 +362,7 @@ cargo run -p cuda_example
 cargo run -p enhanced_topo_memory_example
 cargo run -p synthetic_data_example
 cargo run -p adaptive_scheduler_example
+cargo run -p multimodal_example
 
 # Experimental models
 cargo run -p experimental_model
