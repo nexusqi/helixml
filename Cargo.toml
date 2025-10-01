@@ -12,9 +12,10 @@ members = [
     "crates/optim",
     "crates/training",
     "crates/topo-memory",
-    "crates/synthetic-data",
-    "crates/adaptive-scheduler",
-    "crates/meanings",
+           "crates/synthetic-data",
+           "crates/multimodal",
+           "crates/adaptive-scheduler",
+           "crates/meanings",
     "crates/geometry",
     "crates/scheduling",
     "crates/serve",
@@ -32,9 +33,10 @@ members = [
         "examples/ssm_byte_lm",
         "examples/cuda_example",
         "examples/advanced_autograd_example",
-    "examples/synthetic_data_example",
-    "examples/adaptive_scheduler_example",
-    "benches"
+           "examples/synthetic_data_example",
+           "examples/multimodal_example",
+           "examples/adaptive_scheduler_example",
+           "benches"
 ]
 
 

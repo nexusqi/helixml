@@ -1,6 +1,6 @@
 //! 🌀 HelixML Topological Memory Example
 //! 
-//! Демонстрация работы топологической памяти и системы U/I/S связей.
+//! Demonstration of topological memory and U/I/S link system.
 
 use backend_cpu::CpuTensor;
 use tensor_core::{Device, DType, Shape, Result, Tensor};
@@ -14,7 +14,7 @@ fn main() -> Result<()> {
     
     let device = Device::cpu();
     
-    // Создаем топологическую память
+    // Create topological memory
     println!("\nCreating topological memory...");
     let mut topo_memory = TopologicalMemory::new(
         64, // d_model
@@ -24,7 +24,7 @@ fn main() -> Result<()> {
         &device
     )?;
     
-    // Создаем тестовую последовательность
+    // Create test sequence
     println!("\nCreating test sequence...");
     let sequence = CpuTensor::random_uniform(
         Shape::new(vec![10, 64]), // seq_len, d_model
@@ -35,24 +35,24 @@ fn main() -> Result<()> {
     
     println!("Sequence shape: {:?}", sequence.shape());
     
-    // Обрабатываем последовательность
+    // Process sequence
     println!("\nProcessing sequence through topological memory...");
     let result = topo_memory.process_sequence(&sequence)?;
     
     println!("Processing result shape: {:?}", result.stability.shape());
     
-    // Получаем статистику памяти
+    // Get memory statistics
     println!("\nMemory statistics:");
     let stats = topo_memory.get_stats();
     println!("Motifs: {}", stats.motif_count);
     println!("Cycles: {}", stats.cycle_count);
     println!("Stable cores: {}", stats.stable_core_count);
     
-    // Тестируем систему U/I/S связей
+    // Test U/I/S link system
     println!("\nTesting U/I/S link system...");
     let mut link_manager = LinkManager::new();
     
-    // Добавляем несколько U-связей
+    // Add several U-links
     for i in 0..5 {
         let link = topo_memory::Link::new(i, i * 10, i * 10 + 1);
         link_manager.add_u_link(link)?;
@@ -60,23 +60,23 @@ fn main() -> Result<()> {
     
     println!("Added 5 U-links");
     
-    // Получаем статистику связей
+    // Get link statistics
     let link_stats = link_manager.get_stats();
     println!("Link stats: U={}, I={}, S={}, avg_stability={:.3}", 
              link_stats.u_links, link_stats.i_links, link_stats.s_links, link_stats.avg_stability);
     
-    // Тестируем стабильность
+    // Test stability
     println!("\nTesting stability calculation...");
     let stability_params = StabilityParams::new(0.1, 0.5, 0.01);
     
-    // Обновляем связи с сигналами
+    // Update links with signals
     link_manager.update_links_with_signals(0.3, 0.4, 0.2, 0.1, &stability_params)?;
     
     let updated_stats = link_manager.get_stats();
     println!("Updated link stats: U={}, I={}, S={}, avg_stability={:.3}", 
              updated_stats.u_links, updated_stats.i_links, updated_stats.s_links, updated_stats.avg_stability);
     
-    // Тестируем консолидацию
+    // Test consolidation
     println!("\nTesting consolidation...");
     link_manager.sweep_and_consolidate(&stability_params, true)?;
     
@@ -84,7 +84,7 @@ fn main() -> Result<()> {
     println!("Final link stats: U={}, I={}, S={}, avg_stability={:.3}", 
              final_stats.u_links, final_stats.i_links, final_stats.s_links, final_stats.avg_stability);
     
-    // Тестируем meaning induction bootstrap
+    // Test meaning induction bootstrap
     println!("\nTesting Meaning Induction Bootstrap...");
     let bootstrap_cfg = BootstrapCfg {
         theta_low: 0.1,

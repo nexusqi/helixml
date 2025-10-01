@@ -1,0 +1,12 @@
+[package]
+name = "multimodal_example"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+multimodal = { path = "../../crates/multimodal" }
+tensor-core = { path = "../../crates/tensor-core" }
+backend-cpu = { path = "../../crates/backend-cpu" }
+anyhow = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+log = "0.4"
