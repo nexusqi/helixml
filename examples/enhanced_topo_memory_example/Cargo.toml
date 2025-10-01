@@ -1,0 +1,14 @@
+[package]
+name = "enhanced_topo_memory_example"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+helix-ml = { path = "../../" }
+tensor-core = { path = "../../crates/tensor-core" }
+backend-cpu = { path = "../../crates/backend-cpu" }
+topo-memory = { path = "../../crates/topo-memory" }
+geometry = { path = "../../crates/geometry" }
+anyhow = "1.0"
+tracing = "0.1"
+nalgebra = "0.32"

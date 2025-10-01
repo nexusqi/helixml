@@ -1,0 +1,15 @@
+[package]
+name = "synthetic_data_example"
+version = "0.1.0"
+edition = "2021"
+authors = ["HelixML Team"]
+description = "Example usage of synthetic data generation system"
+
+[dependencies]
+synthetic-data = { path = "../../crates/synthetic-data" }
+tensor-core = { path = "../../crates/tensor-core" }
+backend-cpu = { path = "../../crates/backend-cpu" }
+anyhow = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"

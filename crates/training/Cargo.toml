@@ -1,0 +1,48 @@
+[package]
+name = "training"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "🌀 HelixML Training System - Advanced training with loss functions, optimizers, and schedulers"
+
+[dependencies]
+# Core dependencies
+tensor-core = { path = "../tensor-core" }
+hal = { path = "../hal" }
+autograd = { path = "../autograd" }
+nn = { path = "../nn" }
+optim = { path = "../optim" }
+data-pipeline = { path = "../data-pipeline" }
+
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Serialization
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+
+# Utilities
+rayon = { workspace = true }
+rand = { workspace = true }
+rand_distr = { workspace = true }
+
+# Math
+nalgebra = { version = "0.32", features = ["serde-serialize"] }
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Progress bars
+indicatif = "0.17"
+
+# Statistics
+statrs = "0.16"

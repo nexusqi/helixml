@@ -9,6 +9,7 @@ description.workspace = true
 
 [dependencies]
 tensor-core = { path = "../tensor-core" }
+hal = { path = "../hal" }
 serde = { workspace = true }
 thiserror = { workspace = true }
 cudarc = { version = "0.9", optional = true }

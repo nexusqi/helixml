@@ -6,6 +6,10 @@ use tensor_core::{Tensor, Shape, DType, Device, Result, TensorError};
 use tensor_core::tensor::{TensorOps, TensorActivation, TensorRandom, TensorReduce, TensorBroadcast, TensorMixedPrecision};
 use std::marker::PhantomData;
 
+// Re-exports
+pub mod ssm;
+pub use ssm::*;
+
 // Forward declaration for AutogradContext
 pub struct AutogradContext<T: Tensor>(std::marker::PhantomData<T>);
 
@@ -27,6 +31,12 @@ pub trait CheckpointableModule<T: Tensor> {
     fn should_checkpoint(&self) -> bool {
         true // Default to checkpointing for memory efficiency
     }
+    
+    /// Create checkpoint of module parameters
+    fn checkpoint(&self) -> Result<Vec<T>>;
+    
+    /// Restore module from checkpoint
+    fn restore(&mut self, checkpoint: Vec<T>) -> Result<()>;
 }
 
 /// Linear layer (fully connected layer)

@@ -1,0 +1,44 @@
+[package]
+name = "synthetic-data"
+version = "0.1.0"
+edition = "2021"
+authors = ["HelixML Team"]
+description = "Synthetic data generation system with verification for HelixML"
+license = "MIT"
+repository = "https://github.com/helix-ml/helix-ml"
+
+[dependencies]
+tensor-core = { path = "../tensor-core" }
+backend-cpu = { path = "../backend-cpu" }
+backend-cuda = { path = "../backend-cuda" }
+autograd = { path = "../autograd" }
+nn = { path = "../nn" }
+optim = { path = "../optim" }
+topo-memory = { path = "../topo-memory" }
+training = { path = "../training" }
+
+# External dependencies
+anyhow = "1.0"
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+rand = "0.8"
+rand_distr = "0.4"
+nalgebra = "0.32"
+ndarray = "0.15"
+# polars = { version = "0.40", features = ["lazy", "temporal", "strings"] }
+rayon = "1.8"
+tokio = { version = "1.0", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+criterion = { version = "0.5", features = ["html_reports"] }
+proptest = "1.0"
+
+[dev-dependencies]
+criterion = "0.5"
+proptest = "1.0"
+tempfile = "3.0"
+
+# [[bench]]
+# name = "synthetic_data_generation"
+# harness = false

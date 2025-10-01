@@ -9,10 +9,12 @@
 ## 🚀 Features
 
 ### Core Components
-- **Tensor Operations**: High-performance tensor operations with CPU backend
-- **Automatic Differentiation**: Full autograd support with gradient checkpointing
-- **Neural Networks**: Modern layers including RMSNorm, SiLU, GELU, Dropout
-- **Optimizers**: AdamW, Lion, SGD with learning rate scheduling
+- **Tensor Operations**: High-performance tensor operations with CPU and CUDA backends
+- **Automatic Differentiation**: Full autograd support with gradient checkpointing, accumulation, and clipping
+- **Neural Networks**: Modern layers including RMSNorm, SiLU, GELU, Dropout, Linear
+- **Optimizers**: AdamW, Lion, SGD with learning rate scheduling and mixed precision
+- **Training System**: Comprehensive training with loss functions, metrics, and checkpointing
+- **Multi-Device Support**: UnifiedTensor with automatic device synchronization
 
 ### Post-Transformer Architectures
 - **State-Space Models (SSM)**:
@@ -21,22 +23,33 @@
 - **Hyena Blocks**: FFT-based long convolutions
 - **HyenaOperator**: Advanced FFT convolution operations
 
-### Experimental Components
-- **Topological Memory System**:
-  - M0 (Motifs): Short pattern detection
-  - M1 (Cycles): Medium-term dependency analysis  
-  - M2 (Stable Cores): Long-term knowledge extraction
-  - U/I/S Links: Temporal/Intermediate/Stable connections
-  - Stability Formula: S = f(R, E, C, Φ, S)
+### Advanced Components
+- **Enhanced Topological Memory System**:
+  - M0 (Motifs): Short pattern detection with hierarchical processing
+  - M1 (Cycles): Medium-term dependency analysis with attention mechanisms
+  - M2 (Stable Cores): Long-term knowledge extraction with adaptive consolidation
+  - U/I/S Links: Temporal/Intermediate/Stable connections with stability prediction
+  - Enhanced Retrieval: Multi-scale analysis and pattern synthesis
+  - Phase Synchronization: SSM core synchronization utilities
 
 - **Geometric Processing**:
-  - Twistor Pre-encoder: Geometric preprocessing
-  - E8 Symmetry Tying: E8 group symmetries
-  - MERA Hierarchical Access: Hierarchical memory access
+  - Twistor Pre-encoder: Geometric preprocessing with invariants
+  - E8 Symmetry Tying: E8 group symmetries with breaking detection
+  - MERA Hierarchical Access: Hierarchical memory access with isometries
 
-- **Advanced Scheduling**:
-  - CDT Scheduler: Causal Dynamical Triangulation
-  - Operation optimization and parallelization
+- **Adaptive Scheduling System**:
+  - Multi-Device Orchestration: CPU, CUDA device management
+  - Load Balancing: Round Robin, Least Loaded, Weighted, Adaptive strategies
+  - Resource Monitoring: Memory, compute, bandwidth, storage tracking
+  - Optimization Engine: Genetic Algorithm, Simulated Annealing, Particle Swarm
+  - Policy Management: Resource, Load Balancing, Priority, Energy, Latency policies
+  - Metrics Collection: Comprehensive performance monitoring and analytics
+
+- **Synthetic Data Generation**:
+  - Multi-Modal Generators: Sequences, Images, Graphs, Time Series, Text
+  - Verification System: Quality checks, statistical validation, cross-modal verification
+  - Dataset Management: Pre-defined datasets for various ML tasks
+  - Benchmarking: Performance testing and optimization
 
 ### Advanced Features
 - **Mixed Precision**: FP16/INT8 support
@@ -138,7 +151,7 @@ fn main() -> Result<()> {
 }
 ```
 
-### Topological Memory Example
+### Enhanced Topological Memory Example
 
 ```rust
 use helix_ml::*;
@@ -147,8 +160,8 @@ fn main() -> Result<()> {
     let device = Device::cpu();
     let d_model = 64;
     
-    // Create topological memory system
-    let mut topo_memory = TopologicalMemory::<CpuTensor>::new(
+    // Create enhanced topological memory system
+    let mut topo_memory = EnhancedTopologicalMemory::<CpuTensor>::new(
         d_model,
         5,    // max_motif_length
         0.7,  // cycle_detection_threshold
@@ -168,6 +181,77 @@ fn main() -> Result<()> {
     println!("Detected motifs: {}", memory_output.motifs.len());
     println!("Detected cycles: {}", memory_output.cycles.len());
     println!("Stable cores: {}", memory_output.stable_cores.len());
+    println!("Hierarchical features: {}", memory_output.hierarchical_features.len());
+    
+    Ok(())
+}
+```
+
+### Adaptive Scheduler Example
+
+```rust
+use helix_ml::*;
+
+fn main() -> Result<()> {
+    // Initialize scheduler configuration
+    let config = SchedulerConfig::default();
+    let mut scheduler = AdaptiveScheduler::new(config)?;
+    
+    // Start the scheduler
+    scheduler.start()?;
+    
+    // Create and submit tasks
+    let task = Task {
+        operation: TaskOperation::TensorOperation {
+            operation: TensorOp::MatrixMultiply,
+            inputs: vec![],
+            output_shape: Shape::new(vec![100, 100]),
+        },
+        priority: TaskPriority::High,
+        resource_requirements: ResourceRequirements::default(),
+        device_requirements: DeviceRequirements::default(),
+        timeout: Duration::from_secs(30),
+        retry_count: 0,
+        max_retries: 3,
+    };
+    
+    let task_id = scheduler.submit_task(task)?;
+    println!("Submitted task: {}", task_id.id);
+    
+    // Monitor task execution
+    let status = scheduler.get_task_status(&task_id)?;
+    println!("Task status: {:?}", status);
+    
+    // Stop the scheduler
+    scheduler.stop()?;
+    
+    Ok(())
+}
+```
+
+### Synthetic Data Generation Example
+
+```rust
+use helix_ml::*;
+
+fn main() -> Result<()> {
+    let device = Device::cpu();
+    
+    // Create synthetic data system
+    let config = SyntheticDataConfig::default();
+    let mut synthetic_system = SyntheticDataSystem::new(config, &device)?;
+    
+    // Generate synthetic sequences
+    let sequences = synthetic_system.generate_sequences(100)?;
+    println!("Generated {} sequences", sequences.sequences.len());
+    
+    // Generate synthetic images
+    let images = synthetic_system.generate_images(50)?;
+    println!("Generated {} images", images.images.len());
+    
+    // Generate synthetic graphs
+    let graphs = synthetic_system.generate_graphs(25)?;
+    println!("Generated {} graphs", graphs.graphs.len());
     
     Ok(())
 }
@@ -178,23 +262,23 @@ fn main() -> Result<()> {
 ### Core Crates
 - `tensor-core`: Core tensor operations and types
 - `backend-cpu`: CPU implementation using ndarray
-- `autograd`: Automatic differentiation
+- `backend-cuda`: CUDA implementation with fused kernels
+- `autograd`: Complete automatic differentiation system
 - `nn`: Neural network layers and modules
 - `optim`: Optimization algorithms
+- `training`: Comprehensive training system
 
-### Experimental Crates
-- `topo-memory`: Topological memory system
+### Advanced Crates
+- `topo-memory`: Enhanced topological memory system
 - `geometry`: Geometric processing components
-- `scheduling`: Advanced operation scheduling
+- `adaptive-scheduler`: Multi-device adaptive scheduling
+- `synthetic-data`: Synthetic data generation and verification
 
 ### Utility Crates
-- `data`: Data loading and preprocessing
-- `io`: Input/output utilities
-- `moe`: Mixture of Experts
-- `quant`: Quantization support
-- `rev`: Reverse mode autograd
+- `data-pipeline`: Data loading and preprocessing
+- `meanings`: Semantic processing
+- `scheduling`: Advanced operation scheduling
 - `serve`: Model serving
-- `utils`: Common utilities
 
 ## 📚 Examples
 
@@ -218,6 +302,12 @@ cargo run -p hyena_span_infilling
 cargo run -p broadcasting_example
 cargo run -p checkpointing_example
 cargo run -p mixed_precision_example
+cargo run -p cuda_example
+
+# Enhanced systems
+cargo run -p enhanced_topo_memory_example
+cargo run -p synthetic_data_example
+cargo run -p adaptive_scheduler_example
 
 # Experimental models
 cargo run -p experimental_model

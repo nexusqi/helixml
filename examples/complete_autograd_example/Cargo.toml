@@ -1,0 +1,15 @@
+[package]
+name = "complete_autograd_example"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+helix-ml = { path = "../../" }
+tensor-core = { path = "../../crates/tensor-core" }
+backend-cpu = { path = "../../crates/backend-cpu" }
+autograd = { path = "../../crates/autograd" }
+nn = { path = "../../crates/nn" }
+optim = { path = "../../crates/optim" }
+training = { path = "../../crates/training" }
+anyhow = "1.0"
+tracing = "0.1"

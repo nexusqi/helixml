@@ -13,6 +13,9 @@ pub mod stable_cores;
 pub mod links;
 pub mod uis_links;
 pub mod stability;
+pub mod enhanced;
+pub mod geometry;
+pub mod phase_sync;
 
 pub use motifs::*;
 pub use cycles::*;
@@ -20,6 +23,9 @@ pub use stable_cores::*;
 pub use links::*;
 pub use uis_links::*;
 pub use stability::*;
+pub use enhanced::*;
+pub use geometry::*;
+pub use phase_sync::*;
 
 /// Core topological memory system
 #[derive(Debug)]

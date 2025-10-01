@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "lib",
+    "crates/hal",
     "crates/tensor-core",
     "crates/backend-cpu", 
         "crates/backend-cuda",
@@ -9,7 +10,10 @@ members = [
         "crates/nn",
         "crates/data-pipeline",
     "crates/optim",
+    "crates/training",
     "crates/topo-memory",
+    "crates/synthetic-data",
+    "crates/adaptive-scheduler",
     "crates/meanings",
     "crates/geometry",
     "crates/scheduling",
@@ -28,6 +32,8 @@ members = [
         "examples/ssm_byte_lm",
         "examples/cuda_example",
         "examples/advanced_autograd_example",
+    "examples/synthetic_data_example",
+    "examples/adaptive_scheduler_example",
     "benches"
 ]
 
@@ -66,6 +72,14 @@ arrow = "50.0"
 rayon = "1.8"
 criterion = "0.5"
 
+# Random
+rand = "0.8"
+rand_distr = "0.4"
+
+# Logging
+tracing = "0.1"
+
+
 # CUDA
 cudarc = "0.9"
 cublas-sys = "0.1"
@@ -74,7 +88,10 @@ cublas-sys = "0.1"
 half = "2.3"
 
 # Testing
-proptest = "1.4"
+proptest = { version = "1.4" }
+
+# Hardware detection
+num_cpus = "1.0"
 
 [profile.release]
 lto = true

@@ -1,0 +1,44 @@
+[package]
+name = "hal"
+version = "0.1.0"
+edition = "2021"
+authors = ["Alex B <alex@helix-ml.dev>"]
+license = "MIT"
+repository = "https://github.com/helix-ml/helix-ml"
+description = "🌀 HelixML Hardware Abstraction Layer - Universal compute backend interface"
+
+[dependencies]
+# Core dependencies
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Math & tensors
+ndarray = { workspace = true }
+num-traits = { workspace = true }
+num-complex = { workspace = true }
+
+# Async & concurrency
+tokio = { workspace = true }
+futures = "0.3"
+
+# Performance
+rayon = { workspace = true }
+
+# Hardware-specific (optional)
+cudarc = { workspace = true, optional = true }
+cublas-sys = { workspace = true, optional = true }
+
+[features]
+default = []
+cuda = ["cudarc", "cublas-sys"]
+
+# Hardware detection (temporarily disabled)
+# num_cpus = "1.0"
+
+# Testing (temporarily disabled)
+# proptest = { workspace = true }
+
+[dev-dependencies]
+criterion = "0.5"

@@ -1,0 +1,13 @@
+[package]
+name = "cuda_backend_example"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+helix-ml = { path = "../.." }
+backend-cuda = { path = "../../crates/backend-cuda" }
+tensor-core = { path = "../../crates/tensor-core" }
+hal = { path = "../../crates/hal" }
+anyhow = "1.0"
+

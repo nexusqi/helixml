@@ -1,13 +1,23 @@
 //! 🌀 HelixML CPU Backend
 //! 
-//! High-performance CPU backend with BLAS optimization for SSM/Hyena architectures.
+//! High-performance CPU backend with BLAS integration and SIMD optimizations.
 
 #![recursion_limit = "1024"]
+
+pub mod cpu_backend;
+pub mod blas_ops;
+pub mod simd_ops;
+pub mod memory_pool;
+
+// Re-exports
+pub use cpu_backend::*;
+pub use blas_ops::*;
+pub use simd_ops::*;
+pub use memory_pool::*;
 
 use tensor_core::{Tensor, Shape, DType, Device, Result, TensorError};
 use tensor_core::tensor::{TensorOps, TensorReduce, TensorStats, TensorActivation, TensorRandom, TensorBroadcast, TensorMixedPrecision};
 use ndarray::{ArrayD, IxDyn, s};
-use rayon::prelude::*;
 
 /// CPU tensor implementation using ndarray
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
