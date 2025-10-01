@@ -37,7 +37,7 @@ members = [
            "examples/multimodal_example",
            "examples/adaptive_scheduler_example",
            "benches"
-]
+, "test_helix_project"]
 
 
 [workspace.package]

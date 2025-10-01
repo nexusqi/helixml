@@ -70,6 +70,10 @@
 - **Broadcasting**: Efficient tensor broadcasting
 - **Gradient Checkpointing**: Memory-efficient training
 - **Byte-level Language Modeling**: Token-free text processing
+- **Hardware Abstraction Layer**: Universal compute backend interface
+- **Meaning Induction Bootstrap**: SIM/MIL with U/I/S links and stability
+- **CDT Scheduler**: Advanced planning and scheduling
+- **Model Serving**: Production-ready model deployment
 
 ## 📦 Installation
 
@@ -79,6 +83,24 @@ Add to your `Cargo.toml`:
 [dependencies]
 helix-ml = "0.1.0"
 ```
+
+### Features
+
+HelixML supports optional features for different use cases:
+
+```toml
+[dependencies]
+helix-ml = { version = "0.1.0", features = ["cuda", "multimodal", "synthetic-data"] }
+```
+
+Available features:
+- `cuda`: CUDA GPU acceleration support
+- `multimodal`: Universal multimodal data processing
+- `synthetic-data`: Synthetic data generation
+- `audio`: Audio processing support
+- `video`: Video processing support
+- `image`: Image processing support
+- `pointcloud`: 3D point cloud processing
 
 ## 🎯 Quick Start
 
@@ -314,7 +336,8 @@ async fn main() -> Result<()> {
 
 ### Core Crates
 - `tensor-core`: Core tensor operations and types
-- `backend-cpu`: CPU implementation using ndarray
+- `hal`: Hardware Abstraction Layer - Universal compute backend interface
+- `backend-cpu`: CPU implementation using ndarray with BLAS integration
 - `backend-cuda`: CUDA implementation with fused kernels
 - `autograd`: Complete automatic differentiation system
 - `nn`: Neural network layers and modules
@@ -323,16 +346,16 @@ async fn main() -> Result<()> {
 
 ### Advanced Crates
 - `topo-memory`: Enhanced topological memory system
-- `geometry`: Geometric processing components
+- `geometry`: Geometric processing components (Twistor, E8 symmetry, MERA)
 - `multimodal`: Universal multimodal data processing
 - `adaptive-scheduler`: Multi-device adaptive scheduling
 - `synthetic-data`: Synthetic data generation and verification
 
 ### Utility Crates
-- `data-pipeline`: Data loading and preprocessing
-- `meanings`: Semantic processing
-- `scheduling`: Advanced operation scheduling
-- `serve`: Model serving
+- `data-pipeline`: Data loading and preprocessing with async support
+- `meanings`: Semantic processing and Meaning Induction Bootstrap (SIM/MIL)
+- `scheduling`: Advanced operation scheduling with CDT scheduler
+- `serve`: Model serving and deployment
 
 ## 📚 Examples
 
@@ -342,6 +365,7 @@ The framework includes comprehensive examples:
 # Basic examples
 cargo run -p simple_example
 cargo run -p advanced_example
+cargo run -p minimal_example
 
 # SSM examples
 cargo run -p ssm_example
@@ -357,6 +381,11 @@ cargo run -p broadcasting_example
 cargo run -p checkpointing_example
 cargo run -p mixed_precision_example
 cargo run -p cuda_example
+cargo run -p cuda_backend_example
+
+# Autograd examples
+cargo run -p advanced_autograd_example
+cargo run -p complete_autograd_example
 
 # Enhanced systems
 cargo run -p enhanced_topo_memory_example
