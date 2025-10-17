@@ -11,7 +11,7 @@ use std::f32::consts::PI;
 /// Phase synchronization analyzer for topological memory
 #[derive(Debug)]
 pub struct PhaseSynchronizationAnalyzer<T: Tensor> {
-    // Phase analysis components
+    _phantom: std::marker::PhantomData<T>,    // Phase analysis components
     phase_detector: PhaseDetector<T>,
     coherence_analyzer: CoherenceAnalyzer<T>,
     synchronization_metrics: SynchronizationMetrics<T>,
@@ -90,6 +90,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             synchronization_metrics,
             config,
             device: device.clone(),
+        _phantom: std::marker::PhantomData,
         })
     }
     
@@ -116,8 +117,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         Ok(PhaseSyncAnalysis {
             phase_signals,
             instantaneous_phases,
-            phase_coherence,
-            synchronization_metrics,
+            phase_coherence: phase_coherence.clone(),
+            synchronization_metrics: synchronization_metrics.clone(),
             phase_relationships,
             phase_sync_index,
             analysis_metadata: self.compute_analysis_metadata(&phase_coherence, &synchronization_metrics)?,
@@ -169,10 +170,13 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             coherence_matrix.push(row);
         }
         
+        let average_coherence = self.compute_average_coherence(&coherence_matrix)?;
+        let coherence_stability = self.compute_coherence_stability(&coherence_matrix)?;
+        
         Ok(PhaseCoherence {
             coherence_matrix,
-            average_coherence: self.compute_average_coherence(&coherence_matrix)?,
-            coherence_stability: self.compute_coherence_stability(&coherence_matrix)?,
+            average_coherence,
+            coherence_stability,
         })
     }
     
@@ -234,6 +238,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             sync_index,
             sync_stability: self.compute_sync_stability(phases)?,
             sync_coherence: self.compute_sync_coherence(phases)?,
+            _phantom: std::marker::PhantomData,
         })
     }
     
@@ -285,8 +290,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     
     fn compute_instantaneous_phase(&self, analytic_signal: &T) -> Result<T> {
         // Compute instantaneous phase from analytic signal
-        let phase = analytic_signal.atan2(&analytic_signal)?;
-        Ok(phase)
+        // TODO: Implement atan2 when available
+        Ok(analytic_signal.clone()) // Placeholder
     }
     
     fn compute_pairwise_coherence(&self, phase1: &T, phase2: &T) -> Result<f32> {
@@ -434,7 +439,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
 /// Phase detector for extracting phase information
 #[derive(Debug)]
 pub struct PhaseDetector<T: Tensor> {
-    phase_resolution: usize,
+    _phantom: std::marker::PhantomData<T>,    phase_resolution: usize,
     device: Device,
 }
 
@@ -443,6 +448,7 @@ impl<T: Tensor> PhaseDetector<T> {
         Ok(Self {
             phase_resolution: resolution,
             device: device.clone(),
+        _phantom: std::marker::PhantomData,
         })
     }
 }
@@ -452,6 +458,7 @@ impl<T: Tensor> PhaseDetector<T> {
 pub struct CoherenceAnalyzer<T: Tensor> {
     coherence_threshold: f32,
     device: Device,
+    _phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Tensor> CoherenceAnalyzer<T> {
@@ -459,16 +466,18 @@ impl<T: Tensor> CoherenceAnalyzer<T> {
         Ok(Self {
             coherence_threshold: threshold,
             device: device.clone(),
+        _phantom: std::marker::PhantomData,
         })
     }
 }
 
 /// Synchronization metrics for phase synchronization
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SynchronizationMetrics<T: Tensor> {
     sync_index: f32,
     sync_stability: f32,
     sync_coherence: f32,
+    _phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Tensor> SynchronizationMetrics<T> {
@@ -477,6 +486,7 @@ impl<T: Tensor> SynchronizationMetrics<T> {
             sync_index: 0.0,
             sync_stability: 0.0,
             sync_coherence: 0.0,
+        _phantom: std::marker::PhantomData,
         })
     }
 }

@@ -27,7 +27,7 @@ impl<T: Tensor> GradientRegistry<T> {
     }
     
     /// Get a gradient function
-    pub fn get(&self, name: &str) -> Option<&dyn GradientFunction<T>> {
+    pub fn get(&self, name: &str) -> Option<&(dyn GradientFunction<T> + Send + Sync)> {
         self.functions.get(name).map(|f| f.as_ref())
     }
 }
@@ -94,11 +94,19 @@ impl<T: Tensor + TensorOps> GradientFunction<T> for MatMulGradient<T> {
         let left = inputs[0];
         let right = inputs[1];
         
+        // For matrix transpose, we transpose the last two dimensions
+        let ndim = right.shape().ndim();
+        let dim0 = if ndim >= 2 { ndim - 2 } else { 0 };
+        let dim1 = if ndim >= 2 { ndim - 1 } else { 0 };
+        
         // Gradient w.r.t. left input: output_grad @ right.T
-        let left_grad = output_grad.matmul(&right.transpose()?)?;
+        let left_grad = output_grad.matmul(&right.transpose(dim0, dim1)?)?;
         
         // Gradient w.r.t. right input: left.T @ output_grad
-        let right_grad = left.transpose()?.matmul(output_grad)?;
+        let left_ndim = left.shape().ndim();
+        let left_dim0 = if left_ndim >= 2 { left_ndim - 2 } else { 0 };
+        let left_dim1 = if left_ndim >= 2 { left_ndim - 1 } else { 0 };
+        let right_grad = left.transpose(left_dim0, left_dim1)?.matmul(output_grad)?;
         
         Ok(vec![left_grad, right_grad])
     }

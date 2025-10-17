@@ -124,6 +124,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         // Topology analysis
         let topology_features = self.topology_analyzer.analyze_topology(&symmetry_features)?;
         
+        let geometric_metadata = self.compute_geometric_metadata(&topology_features)?;
+        
         Ok(GeometricOutput {
             twistor_features,
             e8_features,
@@ -131,7 +133,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             transformed_features,
             symmetry_features,
             topology_features,
-            geometric_metadata: self.compute_geometric_metadata(&topology_features)?,
+            geometric_metadata,
         })
     }
     
@@ -151,13 +153,15 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         let geometric_cycles = self.geometric_transformer.transform_cycles(&transformed_cycles)?;
         let geometric_cores = self.geometric_transformer.transform_cores(&transformed_cores)?;
         
+        let transformation_metadata = self.compute_transformation_metadata(
+            &geometric_motifs, &geometric_cycles, &geometric_cores
+        )?;
+        
         Ok(TransformedMemory {
             geometric_motifs,
             geometric_cycles,
             geometric_cores,
-            transformation_metadata: self.compute_transformation_metadata(
-                &geometric_motifs, &geometric_cycles, &geometric_cores
-            )?,
+            transformation_metadata,
         })
     }
     
@@ -350,7 +354,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
 /// Twistor pre-encoder for geometric processing
 #[derive(Debug)]
 pub struct TwistorPreEncoder<T: Tensor> {
-    twistor_dimension: usize,
+    _phantom: std::marker::PhantomData<T>,    twistor_dimension: usize,
     device: Device,
 }
 
@@ -359,6 +363,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         Ok(Self {
             twistor_dimension: twistor_dim,
             device: device.clone(),
+        _phantom: std::marker::PhantomData,
         })
     }
     
@@ -408,7 +413,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
 /// E8 symmetry tying for geometric processing
 #[derive(Debug)]
 pub struct E8SymmetryTying<T: Tensor> {
-    e8_root_system: E8RootSystem,
+    _phantom: std::marker::PhantomData<T>,    e8_root_system: E8RootSystem,
     device: Device,
 }
 
@@ -426,6 +431,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         Ok(Self {
             e8_root_system,
             device: device.clone(),
+        _phantom: std::marker::PhantomData,
         })
     }
     
@@ -521,8 +527,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         
         for layer in &self.mera_layers {
             let layer_output = self.process_mera_layer(&current_features, layer)?;
+            current_features = layer_output.processed_features.clone();
             layer_outputs.push(layer_output);
-            current_features = layer_output.processed_features;
         }
         
         Ok(MERAFEatures {
@@ -566,13 +572,17 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
 }
 
 // Additional helper structures and implementations
+#[derive(Debug)]
 pub struct GeometricTransformer<T: Tensor> {
-    device: Device,
+    _phantom: std::marker::PhantomData<T>,    device: Device,
 }
 
-impl<T: Tensor> GeometricTransformer<T> {
+impl<T: Tensor + tensor_core::tensor::TensorRandom> GeometricTransformer<T> {
     pub fn new(_d_model: usize, _precision: f32, device: &Device) -> Result<Self> {
-        Ok(Self { device: device.clone() })
+        Ok(Self { 
+            device: device.clone(),
+            _phantom: std::marker::PhantomData,
+        })
     }
     
     pub fn transform_geometric(&self, _features: &MERAFEatures<T>) -> Result<T> {
@@ -596,13 +606,17 @@ impl<T: Tensor> GeometricTransformer<T> {
     }
 }
 
+#[derive(Debug)]
 pub struct SymmetryDetector<T: Tensor> {
-    device: Device,
+    _phantom: std::marker::PhantomData<T>,    device: Device,
 }
 
 impl<T: Tensor> SymmetryDetector<T> {
     pub fn new(_d_model: usize, _tolerance: f32, device: &Device) -> Result<Self> {
-        Ok(Self { device: device.clone() })
+        Ok(Self { 
+            device: device.clone(),
+            _phantom: std::marker::PhantomData,
+        })
     }
     
     pub fn detect_symmetries(&self, _features: &T) -> Result<SymmetryFeatures<T>> {
@@ -610,17 +624,22 @@ impl<T: Tensor> SymmetryDetector<T> {
             symmetries: vec![],
             symmetry_groups: vec![],
             symmetry_breaking: vec![],
+            _phantom: std::marker::PhantomData,
         })
     }
 }
 
+#[derive(Debug)]
 pub struct TopologyAnalyzer<T: Tensor> {
-    device: Device,
+    _phantom: std::marker::PhantomData<T>,    device: Device,
 }
 
-impl<T: Tensor> TopologyAnalyzer<T> {
+impl<T: Tensor + tensor_core::tensor::TensorRandom> TopologyAnalyzer<T> {
     pub fn new(_d_model: usize, _resolution: usize, device: &Device) -> Result<Self> {
-        Ok(Self { device: device.clone() })
+        Ok(Self { 
+            device: device.clone(),
+            _phantom: std::marker::PhantomData,
+        })
     }
     
     pub fn analyze_topology(&self, _features: &SymmetryFeatures<T>) -> Result<TopologyFeatures<T>> {
@@ -677,7 +696,7 @@ pub struct MERAFEatures<T: Tensor> {
 
 #[derive(Debug, Clone)]
 pub struct SymmetryFeatures<T: Tensor> {
-    pub symmetries: Vec<Symmetry>,
+    _phantom: std::marker::PhantomData<T>,    pub symmetries: Vec<Symmetry>,
     pub symmetry_groups: Vec<SymmetryGroup>,
     pub symmetry_breaking: Vec<SymmetryBreaking>,
 }

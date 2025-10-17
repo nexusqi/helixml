@@ -5,13 +5,14 @@
 
 pub mod data_types;
 pub mod processors;
-pub mod encoders;
-pub mod decoders;
-pub mod fusion;
-pub mod alignment;
-pub mod transformers;
-pub mod pipelines;
-pub mod utils;
+// TODO: Implement advanced multimodal features
+// pub mod encoders;
+// pub mod decoders;
+// pub mod fusion;
+// pub mod alignment;
+// pub mod transformers;
+// pub mod pipelines;
+// pub mod utils;
 
 use anyhow::Result;
 use tensor_core::{Tensor, Shape, DType, Device};
@@ -299,9 +300,9 @@ impl IntelligentResourceManager {
         
         for task in tasks {
             let optimal_device = self.select_optimal_device(
-                task.modality,
+                task.modality.clone(),
                 task.data_size,
-                task.requirements
+                task.requirements.clone()
             )?;
             
             distribution.assign_task(task, optimal_device);

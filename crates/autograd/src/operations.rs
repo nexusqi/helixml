@@ -171,7 +171,7 @@ impl<T: Tensor + TensorOps + TensorReduce + TensorStats + TensorBroadcast + Tens
     /// Sum tensor along dimensions
     pub fn sum(&mut self, input_id: usize, dims: Option<Vec<usize>>, keep_dim: bool) -> Result<usize> {
         let input_tensor = self.ctx.get_tensor(input_id).unwrap();
-        let result = input_tensor.tensor().sum(dims.as_ref(), keep_dim)?;
+        let result = input_tensor.tensor().sum(dims.clone(), keep_dim)?;
         let result_shape = result.shape().clone();
         let requires_grad = input_tensor.requires_grad();
         let result_id = self.ctx.tensor(result, requires_grad);
@@ -192,7 +192,7 @@ impl<T: Tensor + TensorOps + TensorReduce + TensorStats + TensorBroadcast + Tens
     /// Mean tensor along dimensions
     pub fn mean(&mut self, input_id: usize, dims: Option<Vec<usize>>, keep_dim: bool) -> Result<usize> {
         let input_tensor = self.ctx.get_tensor(input_id).unwrap();
-        let result = input_tensor.tensor().mean(dims.as_ref(), keep_dim)?;
+        let result = input_tensor.tensor().mean(dims.clone(), keep_dim)?;
         let result_shape = result.shape().clone();
         let requires_grad = input_tensor.requires_grad();
         let result_id = self.ctx.tensor(result, requires_grad);

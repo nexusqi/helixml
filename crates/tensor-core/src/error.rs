@@ -28,9 +28,6 @@ pub enum TensorError {
     
     #[error("Serialization error: {message}")]
     SerializationError { message: String },
-    
-    #[error("Invalid checkpoint: expected {expected} parameters, got {actual}")]
-    InvalidCheckpoint { expected: usize, actual: usize },
 }
 
 /// Result type for tensor operations
