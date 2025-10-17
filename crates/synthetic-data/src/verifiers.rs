@@ -53,7 +53,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         
         Ok(VerificationResult {
             overall_score: self.compute_overall_score(&results),
-            individual_results: results,
+            individual_results: results.clone(),
             quality_metrics: self.compute_quality_metrics(sequences)?,
             recommendations: self.generate_recommendations(&results),
         })
@@ -70,7 +70,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         
         Ok(VerificationResult {
             overall_score: self.compute_overall_score(&results),
-            individual_results: results,
+            individual_results: results.clone(),
             quality_metrics: self.compute_quality_metrics(images)?,
             recommendations: self.generate_recommendations(&results),
         })
@@ -87,7 +87,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         
         Ok(VerificationResult {
             overall_score: self.compute_overall_score(&results),
-            individual_results: results,
+            individual_results: results.clone(),
             quality_metrics: self.compute_quality_metrics(graphs)?,
             recommendations: self.generate_recommendations(&results),
         })
@@ -104,7 +104,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         
         Ok(VerificationResult {
             overall_score: self.compute_overall_score(&results),
-            individual_results: results,
+            individual_results: results.clone(),
             quality_metrics: self.compute_quality_metrics(time_series)?,
             recommendations: self.generate_recommendations(&results),
         })
@@ -121,7 +121,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         
         Ok(VerificationResult {
             overall_score: self.compute_overall_score(&results),
-            individual_results: results,
+            individual_results: results.clone(),
             quality_metrics: self.compute_quality_metrics(text_data)?,
             recommendations: self.generate_recommendations(&results),
         })
@@ -182,8 +182,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         });
         
         // Check pixel value range
-        let min_val = image.min(None)?;
-        let max_val = image.max(None)?;
+        let min_val = image.min(None)?.to_scalar()?;
+        let max_val = image.max(None)?.to_scalar()?;
         let range_check = self.check_pixel_range(min_val, max_val)?;
         checks.push(range_check);
         

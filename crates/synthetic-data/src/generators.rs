@@ -152,8 +152,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         image = image.add(&patterns)?;
         
         // Normalize to [0, 1] range
-        let min_val = image.min(None)?;
-        let max_val = image.max(None)?;
+        let min_val = image.min(None)?.to_scalar()?;
+        let max_val = image.max(None)?.to_scalar()?;
         let range = max_val.sub(&min_val)?;
         image = image.sub(&min_val)?.div(&range)?;
         

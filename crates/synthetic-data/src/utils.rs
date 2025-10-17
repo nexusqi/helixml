@@ -76,8 +76,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     
     /// Normalize data to [0, 1] range
     pub fn normalize_data(&self, data: &T) -> Result<T> {
-        let min_val = data.min(None)?;
-        let max_val = data.max(None)?;
+        let min_val = data.min(None)?.to_scalar()?;
+        let max_val = data.max(None)?.to_scalar()?;
         let range = max_val.sub(&min_val)?;
         let normalized = data.sub(&min_val)?.div(&range)?;
         Ok(normalized)
