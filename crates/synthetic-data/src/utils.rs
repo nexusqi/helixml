@@ -28,21 +28,21 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     
     /// Save synthetic data to file
     pub fn save_data(&self, data: &[T], filename: &str) -> Result<()> {
-        let file = File::create(filename)?;
+        let file = File::create(filename).map_err(|e| TensorError::BackendError { message: format!("IO error: {}", e) })?;
         let mut writer = BufWriter::new(file);
         
         for tensor in data {
             let serialized = self.serialize_tensor(tensor)?;
-            writer.write_all(&serialized)?;
+            writer.write_all(&serialized).map_err(|e| TensorError::BackendError { message: format!("Write error: {}", e) })?;
         }
         
-        writer.flush()?;
+        writer.flush().map_err(|e| TensorError::BackendError { message: format!("Flush error: {}", e) })?;
         Ok(())
     }
     
     /// Load synthetic data from file
     pub fn load_data(&self, filename: &str) -> Result<Vec<T>> {
-        let file = File::open(filename)?;
+        let file = File::open(filename).map_err(|e| TensorError::BackendError { message: format!("IO error: {}", e) })?;
         let mut reader = std::io::BufReader::new(file);
         let mut data = Vec::new();
         
@@ -350,17 +350,17 @@ impl ConfigUtils {
     
     /// Save configuration to file
     pub fn save_config(&self, config: &serde_json::Value, filename: &str) -> Result<()> {
-        let file = File::create(filename)?;
+        let file = File::create(filename).map_err(|e| TensorError::BackendError { message: format!("IO error: {}", e) })?;
         let mut writer = BufWriter::new(file);
-        serde_json::to_writer_pretty(&mut writer, config)?;
-        writer.flush()?;
+        serde_json::to_writer_pretty(&mut writer, config).map_err(|e| TensorError::BackendError { message: format!("JSON error: {}", e) })?;
+        writer.flush().map_err(|e| TensorError::BackendError { message: format!("Flush error: {}", e) })?;
         Ok(())
     }
     
     /// Load configuration from file
     pub fn load_config(&self, filename: &str) -> Result<serde_json::Value> {
-        let file = File::open(filename)?;
-        let config: serde_json::Value = serde_json::from_reader(file)?;
+        let file = File::open(filename).map_err(|e| TensorError::BackendError { message: format!("IO error: {}", e) })?;
+        let config: serde_json::Value = serde_json::from_reader(file).map_err(|e| TensorError::BackendError { message: format!("JSON error: {}", e) })?;
         Ok(config)
     }
 }
