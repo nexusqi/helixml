@@ -33,6 +33,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         Ok(Self {
             device: device.clone(),
             dataset_registry,
+        _phantom: std::marker::PhantomData,
+
         })
     }
     
@@ -147,6 +149,8 @@ impl Default for DatasetConfig {
             noise_level: 0.1,
             complexity: 0.5,
             seed: None,
+        _phantom: std::marker::PhantomData,
+
         }
     }
 }
@@ -194,6 +198,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     pub fn new(device: &Device) -> Result<Self> {
         Ok(Self {
             device: device.clone(),
+        _phantom: std::marker::PhantomData,
+
         })
     }
 }
@@ -240,6 +246,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     pub fn new(device: &Device) -> Result<Self> {
         Ok(Self {
             device: device.clone(),
+        _phantom: std::marker::PhantomData,
+
         })
     }
 }
@@ -288,6 +296,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     pub fn new(device: &Device) -> Result<Self> {
         Ok(Self {
             device: device.clone(),
+        _phantom: std::marker::PhantomData,
+
         })
     }
 }
@@ -336,6 +346,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     pub fn new(device: &Device) -> Result<Self> {
         Ok(Self {
             device: device.clone(),
+        _phantom: std::marker::PhantomData,
+
         })
     }
 }
@@ -382,6 +394,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     pub fn new(device: &Device) -> Result<Self> {
         Ok(Self {
             device: device.clone(),
+        _phantom: std::marker::PhantomData,
+
         })
     }
 }
@@ -428,6 +442,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     pub fn new(device: &Device) -> Result<Self> {
         Ok(Self {
             device: device.clone(),
+        _phantom: std::marker::PhantomData,
+
         })
     }
 }
@@ -474,6 +490,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     pub fn new(device: &Device) -> Result<Self> {
         Ok(Self {
             device: device.clone(),
+        _phantom: std::marker::PhantomData,
+
         })
     }
 }
@@ -520,6 +538,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     pub fn new(device: &Device) -> Result<Self> {
         Ok(Self {
             device: device.clone(),
+        _phantom: std::marker::PhantomData,
+
         })
     }
 }

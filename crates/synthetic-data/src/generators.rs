@@ -28,6 +28,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             vocabulary_size,
             device: device.clone(),
             rng: rand::rngs::StdRng::from_entropy(),
+        _phantom: std::marker::PhantomData,
+
         })
     }
     
@@ -144,8 +146,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         image = image.add(&patterns)?;
         
         // Normalize to [0, 1] range
-        let min_val = image.min()?;
-        let max_val = image.max()?;
+        let min_val = image.min(None)?;
+        let max_val = image.max(None)?;
         let range = max_val.sub(&min_val)?;
         image = image.sub(&min_val)?.div(&range)?;
         

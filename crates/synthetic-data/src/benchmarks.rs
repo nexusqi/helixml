@@ -35,6 +35,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             device: device.clone(),
             benchmarks,
             results: HashMap::new(),
+        _phantom: std::marker::PhantomData,
+
         })
     }
     
@@ -317,6 +319,8 @@ impl<T: Tensor> Benchmark<T> {
             name: name.to_string(),
             benchmark_type,
             device: Device::CPU, // Placeholder
+        _phantom: std::marker::PhantomData,
+
         }
     }
 }
@@ -382,6 +386,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         Ok(Self {
             device: device.clone(),
             custom_benchmarks: Vec::new(),
+        _phantom: std::marker::PhantomData,
+
         })
     }
     
@@ -443,6 +449,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     pub fn new(device: &Device) -> Result<Self> {
         Ok(Self {
             device: device.clone(),
+        _phantom: std::marker::PhantomData,
+
         })
     }
 }
@@ -479,6 +487,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     pub fn new(device: &Device) -> Result<Self> {
         Ok(Self {
             device: device.clone(),
+        _phantom: std::marker::PhantomData,
+
         })
     }
 }

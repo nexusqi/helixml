@@ -31,6 +31,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             device: device.clone(),
             verification_rules,
             quality_metrics: QualityMetrics::default(),
+        _phantom: std::marker::PhantomData,
+
         })
     }
     
@@ -146,8 +148,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         });
         
         // Check statistical properties
-        let mean = sequence.mean()?;
-        let std = sequence.std()?;
+        let mean = sequence.mean(None, false)?;
+        let std = sequence.std(None, false)?;
         let stats_check = self.check_statistical_properties(mean, std)?;
         checks.push(stats_check);
         
@@ -174,8 +176,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         });
         
         // Check pixel value range
-        let min_val = image.min()?;
-        let max_val = image.max()?;
+        let min_val = image.min(None)?;
+        let max_val = image.max(None)?;
         let range_check = self.check_pixel_range(min_val, max_val)?;
         checks.push(range_check);
         
@@ -444,6 +446,8 @@ impl Default for QualityMetrics {
             pattern_validity: 1.0,
             noise_level: 0.1,
             distribution_shape: 1.0,
+        _phantom: std::marker::PhantomData,
+
         }
     }
 }
@@ -467,6 +471,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     pub fn new(device: &Device) -> Result<Self> {
         Ok(Self {
             device: device.clone(),
+        _phantom: std::marker::PhantomData,
+
         })
     }
     

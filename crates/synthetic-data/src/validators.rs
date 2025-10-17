@@ -31,6 +31,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             device: device.clone(),
             validation_methods,
             significance_level: 0.05,
+        _phantom: std::marker::PhantomData,
+
         })
     }
     
@@ -226,8 +228,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     
     fn test_normality(&self, data: &T) -> Result<StatisticalTest> {
         // Perform Shapiro-Wilk test for normality
-        let mean = data.mean()?;
-        let std = data.std()?;
+        let mean = data.mean(None, false)?;
+        let std = data.std(None, false)?;
         
         // Simplified normality test
         let is_normal = std.to_scalar()? > 0.0 && mean.to_scalar()?.is_finite();
@@ -243,7 +245,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     
     fn test_stationarity(&self, data: &T) -> Result<StatisticalTest> {
         // Perform Augmented Dickey-Fuller test for stationarity
-        let mean = data.mean()?;
+        let mean = data.mean(None, false)?;
         let is_stationary = mean.to_scalar()?.is_finite();
         
         Ok(StatisticalTest {
@@ -271,8 +273,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     
     fn test_pixel_distribution(&self, image: &T) -> Result<StatisticalTest> {
         // Test pixel value distribution
-        let mean = image.mean()?;
-        let std = image.std()?;
+        let mean = image.mean(None, false)?;
+        let std = image.std(None, false)?;
         let is_valid = mean.to_scalar()? >= 0.0 && mean.to_scalar()? <= 1.0 && std.to_scalar()? > 0.0;
         
         Ok(StatisticalTest {
@@ -608,6 +610,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         Ok(Self {
             device: device.clone(),
             multivariate_methods,
+        _phantom: std::marker::PhantomData,
+
         })
     }
     

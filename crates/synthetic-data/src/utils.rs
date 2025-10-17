@@ -76,8 +76,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     
     /// Normalize data to [0, 1] range
     pub fn normalize_data(&self, data: &T) -> Result<T> {
-        let min_val = data.min()?;
-        let max_val = data.max()?;
+        let min_val = data.min(None)?;
+        let max_val = data.max(None)?;
         let range = max_val.sub(&min_val)?;
         let normalized = data.sub(&min_val)?.div(&range)?;
         Ok(normalized)
@@ -85,8 +85,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     
     /// Standardize data (mean=0, std=1)
     pub fn standardize_data(&self, data: &T) -> Result<T> {
-        let mean = data.mean()?;
-        let std = data.std()?;
+        let mean = data.mean(None, false)?;
+        let std = data.std(None, false)?;
         let standardized = data.sub(&mean)?.div(&std)?;
         Ok(standardized)
     }
@@ -136,10 +136,10 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     
     /// Compute data statistics
     pub fn compute_statistics(&self, data: &T) -> Result<DataStatistics> {
-        let mean = data.mean()?;
-        let std = data.std()?;
-        let min = data.min()?;
-        let max = data.max()?;
+        let mean = data.mean(None, false)?;
+        let std = data.std(None, false)?;
+        let min = data.min(None)?;
+        let max = data.max(None)?;
         
         Ok(DataStatistics {
             mean: mean.to_scalar()?,
@@ -189,7 +189,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     /// Compute difference between two tensors
     fn compute_difference(&self, tensor1: &T, tensor2: &T) -> Result<f32> {
         let diff = tensor1.sub(tensor2)?;
-        let mse = diff.mul(&diff)?.mean()?;
+        let mse = diff.mul(&diff)?.mean(None, false)?;
         Ok(mse.to_scalar()?)
     }
     
