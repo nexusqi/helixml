@@ -385,6 +385,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
 pub struct PatternGenerator<T: Tensor> {
     device: Device,
     rng: rand::rngs::StdRng,
+    _phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> PatternGenerator<T> {
@@ -467,6 +468,7 @@ pub enum NoiseType {
 pub struct DatasetGenerator<T: Tensor> {
     device: Device,
     rng: rand::rngs::StdRng,
+    _phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> DatasetGenerator<T> {
