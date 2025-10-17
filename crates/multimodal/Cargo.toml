@@ -30,6 +30,6 @@ image_processing = ["image"]
 pointcloud = []
 
 [dev-dependencies]
-criterion = "0.5"
+criterion = "0.7"
 proptest = "1.0"
 tempfile = "3.0"
