@@ -3,7 +3,7 @@
 //! Utility functions for synthetic data generation, verification,
 //! and validation operations
 
-use tensor_core::{Tensor, Shape, DType, Device, Result};
+use tensor_core::{Tensor, Shape, DType, Device, Result, TensorError};
 use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
 use std::collections::HashMap;
 use std::fs::File;
