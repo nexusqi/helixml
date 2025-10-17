@@ -54,9 +54,22 @@ impl<T: Tensor + TensorOps + TensorReduce> LossFunction<T> for MSELoss<T> {
             return Err(anyhow::anyhow!("Predictions and targets must have same length"));
         }
         
-        // Simplified implementation: return first prediction as placeholder
-        // TODO: Implement proper MSE: mean((pred - target)^2)
-        Ok(predictions[0].clone())
+        // MSE: mean((pred - target)^2)
+        let mut total_loss = predictions[0].sub(&targets[0])?.mul(&predictions[0].sub(&targets[0])?)?;
+        
+        for (pred, target) in predictions.iter().zip(targets.iter()).skip(1) {
+            let diff = pred.sub(target)?;
+            let squared = diff.mul(&diff)?;
+            total_loss = total_loss.add(&squared)?;
+        }
+        
+        // Apply reduction
+        let result = match self.reduction {
+            Reduction::Mean => total_loss.mean(None, false)?,
+            Reduction::Sum => total_loss.sum(None, false)?,
+            Reduction::None => total_loss,
+        };
+        Ok(result)
     }
     
     fn name(&self) -> &str {
@@ -196,8 +209,28 @@ impl<T: Tensor + TensorOps + TensorReduce> LossFunction<T> for L1Loss<T> {
         if predictions.is_empty() {
             return Err(anyhow::anyhow!("Empty predictions"));
         }
-        // TODO: Implement proper L1: mean(|pred - target|)
-        Ok(predictions[0].clone())
+        if predictions.len() != targets.len() {
+            return Err(anyhow::anyhow!("Predictions and targets must have same length"));
+        }
+        
+        // L1: mean(|pred - target|)
+        // Note: abs() might not be implemented, use workaround
+        let first_diff = predictions[0].sub(&targets[0])?;
+        let mut total_loss = first_diff.mul(&first_diff)?.sqrt()?; // |x| = sqrt(x^2)
+        
+        for (pred, target) in predictions.iter().zip(targets.iter()).skip(1) {
+            let diff = pred.sub(target)?;
+            let abs_diff = diff.mul(&diff)?.sqrt()?;
+            total_loss = total_loss.add(&abs_diff)?;
+        }
+        
+        // Apply reduction
+        let result = match self.reduction {
+            Reduction::Mean => total_loss.mean(None, false)?,
+            Reduction::Sum => total_loss.sum(None, false)?,
+            Reduction::None => total_loss,
+        };
+        Ok(result)
     }
     
     fn name(&self) -> &str {

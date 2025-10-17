@@ -5,14 +5,13 @@
 
 pub mod data_types;
 pub mod processors;
-// TODO: Implement advanced multimodal features
-// pub mod encoders;
-// pub mod decoders;
-// pub mod fusion;
-// pub mod alignment;
-// pub mod transformers;
-// pub mod pipelines;
-// pub mod utils;
+pub mod encoders;
+pub mod decoders;
+pub mod fusion;
+pub mod alignment;
+pub mod transformers;
+pub mod pipelines;
+pub mod utils;
 
 use anyhow::Result;
 use tensor_core::{Tensor, Shape, DType, Device};
