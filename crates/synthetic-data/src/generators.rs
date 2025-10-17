@@ -95,7 +95,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     
     fn generate_noise(&mut self) -> Result<T> {
         let shape = Shape::new(vec![self.sequence_length]);
-        let noise = T::random_normal(shape, DType::F32, &self.device)?;
+        let noise = T::random_normal(shape, 0.0, 1.0, &self.device)?;
         Ok(noise.mul_scalar(0.1)?)
     }
 }
@@ -117,6 +117,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             batch_size,
             device: device.clone(),
             rng: rand::rngs::StdRng::from_entropy(),
+            _phantom: std::marker::PhantomData,
         })
     }
     
@@ -136,7 +137,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         let shape = Shape::new(vec![height, width, channels]);
         
         // Generate base noise
-        let mut image = T::random_normal(shape, DType::F32, &self.device)?;
+        let mut image = T::random_normal(shape, 0.0, 1.0, &self.device)?;
         
         // Add structured patterns
         let patterns = self.generate_image_patterns()?;
@@ -181,6 +182,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             batch_size,
             device: device.clone(),
             rng: rand::rngs::StdRng::from_entropy(),
+            _phantom: std::marker::PhantomData,
         })
     }
     
@@ -223,7 +225,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     fn generate_node_features(&mut self) -> Result<T> {
         let feature_dim = 16; // Node feature dimension
         let shape = Shape::new(vec![self.num_nodes, feature_dim]);
-        let features = T::random_normal(shape, DType::F32, &self.device)?;
+        let features = T::random_normal(shape, 0.0, 1.0, &self.device)?;
         Ok(features)
     }
 }
@@ -245,6 +247,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             batch_size,
             device: device.clone(),
             rng: rand::rngs::StdRng::from_entropy(),
+            _phantom: std::marker::PhantomData,
         })
     }
     
@@ -316,7 +319,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     
     fn generate_noise_component(&mut self) -> Result<T> {
         let shape = Shape::new(vec![self.series_length]);
-        let noise = T::random_normal(shape, DType::F32, &self.device)?;
+        let noise = T::random_normal(shape, 0.0, 1.0, &self.device)?;
         Ok(noise.mul_scalar(0.1)?)
     }
 }
@@ -338,6 +341,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             sequence_length,
             device: device.clone(),
             rng: rand::rngs::StdRng::from_entropy(),
+            _phantom: std::marker::PhantomData,
         })
     }
     
@@ -378,6 +382,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         Ok(Self {
             device: device.clone(),
             rng: rand::rngs::StdRng::from_entropy(),
+            _phantom: std::marker::PhantomData,
         })
     }
     
@@ -417,7 +422,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     pub fn generate_noise(&mut self, shape: Shape, noise_type: NoiseType) -> Result<T> {
         match noise_type {
             NoiseType::Gaussian => {
-                let noise = T::random_normal(shape, DType::F32, &self.device)?;
+                let noise = T::random_normal(shape, 0.0, 1.0, &self.device)?;
                 Ok(noise)
             }
             NoiseType::Uniform => {
@@ -426,12 +431,12 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             }
             NoiseType::Pink => {
                 // Generate pink noise (1/f noise)
-                let noise = T::random_normal(shape, DType::F32, &self.device)?;
+                let noise = T::random_normal(shape, 0.0, 1.0, &self.device)?;
                 Ok(noise)
             }
             NoiseType::Brownian => {
                 // Generate brownian noise
-                let noise = T::random_normal(shape, DType::F32, &self.device)?;
+                let noise = T::random_normal(shape, 0.0, 1.0, &self.device)?;
                 Ok(noise)
             }
         }
@@ -459,6 +464,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         Ok(Self {
             device: device.clone(),
             rng: rand::rngs::StdRng::from_entropy(),
+            _phantom: std::marker::PhantomData,
         })
     }
     
@@ -508,6 +514,7 @@ pub struct ClassificationDataset<T: Tensor> {
     pub features: Vec<T>,
     pub labels: Vec<T>,
     pub num_classes: usize,
+    _phantom: std::marker::PhantomData<T>,
 }
 
 /// Regression dataset structure
@@ -515,4 +522,5 @@ pub struct ClassificationDataset<T: Tensor> {
 pub struct RegressionDataset<T: Tensor> {
     pub features: Vec<T>,
     pub targets: Vec<T>,
+    _phantom: std::marker::PhantomData<T>,
 }

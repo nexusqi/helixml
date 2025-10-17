@@ -14,6 +14,7 @@ pub struct DataVerifier<T: Tensor> {
     device: Device,
     verification_rules: Vec<VerificationRule>,
     quality_metrics: QualityMetrics,
+_phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> DataVerifier<T> {
@@ -459,6 +460,7 @@ pub struct CrossModalVerification {
 #[derive(Debug)]
 pub struct AdvancedVerifier<T: Tensor> {
     device: Device,
+_phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> AdvancedVerifier<T> {

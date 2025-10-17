@@ -13,6 +13,7 @@ use anyhow::Context;
 pub struct SyntheticDatasets<T: Tensor> {
     device: Device,
     dataset_registry: HashMap<String, Box<dyn DatasetGenerator<T>>>,
+_phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> SyntheticDatasets<T> {
@@ -156,6 +157,7 @@ pub struct GeneratedDataset<T: Tensor> {
     pub features: Vec<T>,
     pub targets: Vec<T>,
     pub metadata: DatasetMetadata,
+_phantom: std::marker::PhantomData<T>,
 }
 
 /// Dataset metadata
@@ -185,6 +187,7 @@ pub struct DatasetInfo {
 #[derive(Debug)]
 pub struct LinearRegressionDataset<T: Tensor> {
     device: Device,
+_phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> LinearRegressionDataset<T> {
@@ -230,6 +233,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
 #[derive(Debug)]
 pub struct ClassificationDataset<T: Tensor> {
     device: Device,
+_phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> ClassificationDataset<T> {
@@ -277,6 +281,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
 #[derive(Debug)]
 pub struct ClusteringDataset<T: Tensor> {
     device: Device,
+_phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> ClusteringDataset<T> {
@@ -324,6 +329,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
 #[derive(Debug)]
 pub struct TimeSeriesDataset<T: Tensor> {
     device: Device,
+_phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> TimeSeriesDataset<T> {
@@ -369,6 +375,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
 #[derive(Debug)]
 pub struct GraphDataset<T: Tensor> {
     device: Device,
+_phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> GraphDataset<T> {
@@ -414,6 +421,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
 #[derive(Debug)]
 pub struct ImageDataset<T: Tensor> {
     device: Device,
+_phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> ImageDataset<T> {
@@ -459,6 +467,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
 #[derive(Debug)]
 pub struct TextDataset<T: Tensor> {
     device: Device,
+_phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> TextDataset<T> {
@@ -504,6 +513,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
 #[derive(Debug)]
 pub struct MultimodalDataset<T: Tensor> {
     device: Device,
+_phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> MultimodalDataset<T> {

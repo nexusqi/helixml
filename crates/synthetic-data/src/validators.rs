@@ -14,6 +14,7 @@ pub struct StatisticalValidator<T: Tensor> {
     device: Device,
     validation_methods: Vec<ValidationMethod>,
     significance_level: f32,
+_phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> StatisticalValidator<T> {
@@ -592,6 +593,7 @@ pub enum ValidationMethod {
 pub struct AdvancedStatisticalValidator<T: Tensor> {
     device: Device,
     multivariate_methods: Vec<MultivariateMethod>,
+_phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> AdvancedStatisticalValidator<T> {

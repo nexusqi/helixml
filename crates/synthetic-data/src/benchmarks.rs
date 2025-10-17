@@ -15,6 +15,7 @@ pub struct BenchmarkSuite<T: Tensor> {
     device: Device,
     benchmarks: Vec<Benchmark<T>>,
     results: HashMap<String, BenchmarkResult>,
+_phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> BenchmarkSuite<T> {
@@ -307,6 +308,7 @@ pub struct Benchmark<T: Tensor> {
     pub name: String,
     pub benchmark_type: BenchmarkType,
     pub device: Device,
+_phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Tensor> Benchmark<T> {
@@ -372,6 +374,7 @@ pub struct PerformanceMetrics {
 pub struct AdvancedBenchmark<T: Tensor> {
     device: Device,
     custom_benchmarks: Vec<CustomBenchmark<T>>,
+_phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> AdvancedBenchmark<T> {
@@ -433,6 +436,7 @@ pub trait CustomBenchmark<T: Tensor> {
 #[derive(Debug)]
 pub struct MemoryUsageBenchmark<T: Tensor> {
     device: Device,
+_phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> MemoryUsageBenchmark<T> {
@@ -468,6 +472,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
 #[derive(Debug)]
 pub struct ThroughputBenchmark<T: Tensor> {
     device: Device,
+_phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> ThroughputBenchmark<T> {
