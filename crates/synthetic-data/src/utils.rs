@@ -178,12 +178,20 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     
     /// Compute similarity between two tensors
     fn compute_similarity(&self, tensor1: &T, tensor2: &T) -> Result<f32> {
-        // Compute cosine similarity
-        let dot_product = tensor1.dot(tensor2)?;
-        let norm1 = tensor1.norm()?;
-        let norm2 = tensor2.norm()?;
-        let similarity = dot_product.div(&norm1.mul(&norm2)?)?;
-        Ok(similarity.to_scalar()?)
+        // Compute cosine similarity: dot(a,b) / (||a|| * ||b||)
+        // dot product = sum(a * b)
+        let product = tensor1.mul(tensor2)?;
+        let dot_product = product.sum(None, false)?.to_scalar()?;
+        
+        // norm = sqrt(sum(x^2))
+        let squared1 = tensor1.mul(tensor1)?;
+        let norm1 = squared1.sum(None, false)?.to_scalar()?.sqrt();
+        
+        let squared2 = tensor2.mul(tensor2)?;
+        let norm2 = squared2.sum(None, false)?.to_scalar()?.sqrt();
+        
+        let similarity = dot_product / (norm1 * norm2);
+        Ok(similarity)
     }
     
     /// Compute difference between two tensors
