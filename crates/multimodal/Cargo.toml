@@ -12,7 +12,7 @@ thiserror = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.0", features = ["full"] }
-image = "0.24"
+image = { version = "0.24", optional = true }
 ffmpeg-next = { version = "6.0", optional = true }
 hound = { version = "3.5", optional = true }
 nalgebra = "0.32"
@@ -26,7 +26,7 @@ cpu = []
 cuda = ["backend-cuda"]
 audio = ["ffmpeg-next", "hound"]
 video = ["ffmpeg-next"]
-image = ["image"]
+image_processing = ["image"]
 pointcloud = []
 
 [dev-dependencies]

@@ -5,9 +5,10 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use anyhow::Result as AnyResult;
+use serde::{Serialize, Deserialize};
 
 /// Training metrics tracker
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Metrics {
     /// Training loss
     pub training_loss: f64,
@@ -17,9 +18,11 @@ pub struct Metrics {
     pub epoch: usize,
     /// Current step
     pub step: usize,
-    /// Training time
+    /// Training time (in seconds)
+    #[serde(skip)]
     pub training_time: Duration,
-    /// Validation time
+    /// Validation time (in seconds)
+    #[serde(skip)]
     pub validation_time: Duration,
     /// Learning rate
     pub learning_rate: f64,
@@ -30,7 +33,7 @@ pub struct Metrics {
 }
 
 /// Metrics history
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MetricsHistory {
     /// Training losses over time
     pub training_losses: Vec<f64>,
@@ -43,6 +46,7 @@ pub struct MetricsHistory {
     /// Steps
     pub steps: Vec<usize>,
     /// Timestamps
+    #[serde(skip)]
     pub timestamps: Vec<Instant>,
     /// Custom metrics over time
     pub custom_metrics_history: HashMap<String, Vec<f64>>,
@@ -162,7 +166,7 @@ impl Metrics {
         if self.history.epochs.is_empty() {
             0.0
         } else {
-            self.history.epochs.last().unwrap() as f64 / 100.0 // Assuming 100 epochs max
+            *self.history.epochs.last().unwrap() as f64 / 100.0 // Assuming 100 epochs max
         }
     }
     

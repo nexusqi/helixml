@@ -255,7 +255,7 @@ impl ToTensor<backend_cpu::CpuTensor> for TextData {
             .ok_or_else(|| anyhow::anyhow!("No embeddings available"))?;
         
         let shape = Shape::new(vec![embeddings.len() / 768, 768]); // Assuming 768-dim embeddings
-        backend_cpu::CpuTensor::from_slice(embeddings, shape, DType::F32, device)
+        Ok(backend_cpu::CpuTensor::from_slice(embeddings, shape, DType::F32, device)?)
     }
 
     fn shape(&self) -> Shape {
@@ -272,7 +272,7 @@ impl ToTensor<backend_cpu::CpuTensor> for ImageData {
     fn to_tensor(&self, device: &Device) -> Result<backend_cpu::CpuTensor> {
         let shape = Shape::new(vec![self.height as usize, self.width as usize, self.channels as usize]);
         let data: Vec<f32> = self.data.iter().map(|&x| x as f32 / 255.0).collect();
-        backend_cpu::CpuTensor::from_slice(&data, shape, DType::F32, device)
+        Ok(backend_cpu::CpuTensor::from_slice(&data, shape, DType::F32, device)?)
     }
 
     fn shape(&self) -> Shape {
@@ -287,7 +287,7 @@ impl ToTensor<backend_cpu::CpuTensor> for ImageData {
 impl ToTensor<backend_cpu::CpuTensor> for AudioData {
     fn to_tensor(&self, device: &Device) -> Result<backend_cpu::CpuTensor> {
         let shape = Shape::new(vec![self.channels as usize, self.data.len() / self.channels as usize]);
-        backend_cpu::CpuTensor::from_slice(&self.data, shape, DType::F32, device)
+        Ok(backend_cpu::CpuTensor::from_slice(&self.data, shape, DType::F32, device)?)
     }
 
     fn shape(&self) -> Shape {
@@ -305,7 +305,7 @@ impl ToTensor<backend_cpu::CpuTensor> for PointCloud3D {
             .flat_map(|p| vec![p.x, p.y, p.z])
             .collect();
         let shape = Shape::new(vec![self.points.len(), 3]);
-        backend_cpu::CpuTensor::from_slice(&points, shape, DType::F32, device)
+        Ok(backend_cpu::CpuTensor::from_slice(&points, shape, DType::F32, device)?)
     }
 
     fn shape(&self) -> Shape {

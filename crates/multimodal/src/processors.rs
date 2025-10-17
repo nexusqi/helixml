@@ -10,12 +10,13 @@ use tokio::time::{Duration, Instant};
 use log::{info, warn, error};
 
 use crate::data_types::*;
-use crate::lib::{Modality, MultimodalData, ProcessedData, FeatureVector};
+use crate::{Modality, MultimodalData, ProcessedData, FeatureVector};
 
 /// Intelligent processor that automatically detects and handles any data type
 pub struct IntelligentProcessor<T: Tensor> {
     device_manager: IntelligentDeviceManager,
     modality_detectors: HashMap<String, Box<dyn ModalityDetector>>,
+    _phantom: std::marker::PhantomData<T>,
     resource_optimizer: ResourceOptimizer,
     performance_monitor: PerformanceMonitor,
 }
@@ -246,11 +247,12 @@ impl ModalityDetector for VideoDetector {
     }
 }
 
-impl<T: Tensor> IntelligentProcessor<T> {
+impl<T: Tensor + tensor_core::tensor::TensorRandom> IntelligentProcessor<T> {
     pub fn new(device: Device) -> Self {
         let mut processor = Self {
             device_manager: IntelligentDeviceManager::new(),
             modality_detectors: HashMap::new(),
+            _phantom: std::marker::PhantomData,
             resource_optimizer: ResourceOptimizer::new(),
             performance_monitor: PerformanceMonitor::new(),
         };
@@ -670,7 +672,7 @@ impl PerformanceMonitor {
     }
 
     pub fn monitor(&mut self, device_id: &str, metric: PerformanceMetric) {
-        self.metrics.entry(device_id.to_string()).or_insert_with(Vec::new).push(metric);
+        self.metrics.entry(device_id.to_string()).or_insert_with(Vec::new).push(metric.clone());
         self.check_alerts(device_id, &metric);
     }
 

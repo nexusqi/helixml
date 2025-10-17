@@ -3,12 +3,14 @@
 //! Advanced validation system for model evaluation.
 
 use crate::metrics::{Metrics, Accuracy, Precision, Recall, F1Score};
-use tensor_core::tensor::Tensor;
+use tensor_core::tensor::{Tensor, TensorOps};
+use backend_cpu::CpuTensor;
 use std::collections::HashMap;
 use anyhow::Result as AnyResult;
 
 /// Validation manager
-pub struct ValidationManager {
+pub struct ValidationManager<T: Tensor> {
+    _phantom: std::marker::PhantomData<T>,
     /// Validation metrics
     metrics: HashMap<String, Box<dyn ValidationMetric>>,
     /// Validation history
@@ -43,10 +45,11 @@ pub struct ValidationResult {
     pub timestamp: std::time::SystemTime,
 }
 
-impl ValidationManager {
+impl<T: Tensor> ValidationManager<T> {
     /// Create new validation manager
     pub fn new() -> Self {
         Self {
+            _phantom: std::marker::PhantomData,
             metrics: HashMap::new(),
             history: Vec::new(),
         }
@@ -58,7 +61,7 @@ impl ValidationManager {
     }
     
     /// Validate model
-    pub fn validate(&mut self, predictions: &[Tensor], targets: &[Tensor], epoch: usize) -> AnyResult<ValidationResult> {
+    pub fn validate(&mut self, predictions: &[CpuTensor], targets: &[CpuTensor], epoch: usize) -> AnyResult<ValidationResult> {
         let mut result = ValidationResult {
             epoch,
             validation_loss: 0.0,
@@ -67,8 +70,8 @@ impl ValidationManager {
         };
         
         // Convert tensors to f64 vectors
-        let pred_values: Vec<f64> = predictions.iter().map(|t| t.item()).collect();
-        let target_values: Vec<f64> = targets.iter().map(|t| t.item()).collect();
+        let pred_values: Vec<f64> = predictions.iter().map(|t| t.to_scalar().unwrap_or(0.0) as f64).collect();
+        let target_values: Vec<f64> = targets.iter().map(|t| t.to_scalar().unwrap_or(0.0) as f64).collect();
         
         // Update metrics
         for (name, metric) in self.metrics.iter_mut() {

@@ -2,6 +2,7 @@
 //! 
 //! Advanced checkpointing system for training state management.
 
+use tensor_core::tensor::Tensor;
 use nn::{Module, CheckpointableModule};
 use crate::metrics::Metrics;
 use std::collections::HashMap;
@@ -9,7 +10,8 @@ use std::path::Path;
 use anyhow::Result as AnyResult;
 
 /// Checkpoint manager
-pub struct CheckpointManager {
+pub struct CheckpointManager<T: Tensor> {
+    _phantom: std::marker::PhantomData<T>,
     /// Checkpoint directory
     checkpoint_dir: String,
     /// Checkpoint metadata
@@ -35,10 +37,11 @@ pub struct CheckpointMetadata {
     pub file_path: String,
 }
 
-impl CheckpointManager {
+impl<T: Tensor> CheckpointManager<T> {
     /// Create new checkpoint manager
     pub fn new() -> AnyResult<Self> {
         Ok(Self {
+            _phantom: std::marker::PhantomData,
             checkpoint_dir: "checkpoints".to_string(),
             metadata: HashMap::new(),
         })
@@ -50,7 +53,7 @@ impl CheckpointManager {
     }
     
     /// Save checkpoint
-    pub async fn save_checkpoint<M: Module<Tensor> + CheckpointableModule<Tensor>>(
+    pub async fn save_checkpoint<M: Module<T> + CheckpointableModule<T>>(
         &self,
         epoch: usize,
         model: &M,
@@ -92,7 +95,7 @@ impl CheckpointManager {
     }
     
     /// Load checkpoint
-    pub async fn load_checkpoint<M: Module<Tensor> + CheckpointableModule<Tensor>>(
+    pub async fn load_checkpoint<M: Module<T> + CheckpointableModule<T>>(
         &self,
         epoch: usize,
         model: &mut M,

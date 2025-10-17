@@ -7,18 +7,18 @@ use std::collections::VecDeque;
 use anyhow::Result as AnyResult;
 
 /// Data loader
-pub struct DataLoader {
+pub struct DataLoader<T: Tensor> {
     /// Number of workers
     num_workers: usize,
     /// Pin memory
     pin_memory: bool,
     /// Data queue
-    data_queue: VecDeque<Tensor>,
+    data_queue: VecDeque<T>,
     /// Batch queue
-    batch_queue: VecDeque<Vec<Tensor>>,
+    batch_queue: VecDeque<Vec<T>>,
 }
 
-impl DataLoader {
+impl<T: Tensor> DataLoader<T> {
     /// Create new data loader
     pub fn new(num_workers: usize, pin_memory: bool) -> AnyResult<Self> {
         Ok(Self {
@@ -30,7 +30,7 @@ impl DataLoader {
     }
     
     /// Create batches from data
-    pub fn create_batches(&self, data: &[Tensor], batch_size: usize) -> AnyResult<Vec<Vec<Tensor>>> {
+    pub fn create_batches(&self, data: &[T], batch_size: usize) -> AnyResult<Vec<Vec<T>>> {
         let mut batches = Vec::new();
         
         for chunk in data.chunks(batch_size) {
@@ -41,7 +41,7 @@ impl DataLoader {
     }
     
     /// Load data
-    pub fn load_data(&mut self, data: &[Tensor]) -> AnyResult<()> {
+    pub fn load_data(&mut self, data: &[T]) -> AnyResult<()> {
         self.data_queue.clear();
         for tensor in data {
             self.data_queue.push_back(tensor.clone());
@@ -50,7 +50,7 @@ impl DataLoader {
     }
     
     /// Get next batch
-    pub fn get_next_batch(&mut self, batch_size: usize) -> Option<Vec<Tensor>> {
+    pub fn get_next_batch(&mut self, batch_size: usize) -> Option<Vec<T>> {
         if self.data_queue.len() < batch_size {
             return None;
         }
