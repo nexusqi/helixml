@@ -154,8 +154,10 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         // Normalize to [0, 1] range
         let min_val = image.min(None)?.to_scalar()?;
         let max_val = image.max(None)?.to_scalar()?;
-        let range = max_val.sub(&min_val)?;
-        image = image.sub(&min_val)?.div(&range)?;
+        let range = max_val - min_val;
+        // Subtract scalar and divide by scalar (using tensor scalar operations)
+        image = image.add(&T::from_scalar(-min_val, image.shape().clone(), image.dtype(), image.device())?)?;
+        image = image.mul(&T::from_scalar(1.0 / range, image.shape().clone(), image.dtype(), image.device())?)?;
         
         Ok(image)
     }
