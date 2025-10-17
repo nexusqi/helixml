@@ -40,6 +40,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             device: device.clone(),
             dataset_registry,
 
+        _phantom: std::marker::PhantomData,
         })
     }
     
@@ -155,6 +156,7 @@ impl Default for DatasetConfig {
             complexity: 0.5,
             seed: None,
 
+        _phantom: std::marker::PhantomData,
         }
     }
 }
@@ -203,6 +205,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         Ok(Self {
             device: device.clone(),
 
+        _phantom: std::marker::PhantomData,
         })
     }
 }
@@ -250,6 +253,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         Ok(Self {
             device: device.clone(),
 
+        _phantom: std::marker::PhantomData,
         })
     }
 }
@@ -299,6 +303,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         Ok(Self {
             device: device.clone(),
 
+        _phantom: std::marker::PhantomData,
         })
     }
 }
@@ -348,6 +353,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         Ok(Self {
             device: device.clone(),
 
+        _phantom: std::marker::PhantomData,
         })
     }
 }
@@ -395,6 +401,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         Ok(Self {
             device: device.clone(),
 
+        _phantom: std::marker::PhantomData,
         })
     }
 }
@@ -442,6 +449,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         Ok(Self {
             device: device.clone(),
 
+        _phantom: std::marker::PhantomData,
         })
     }
 }
@@ -489,6 +497,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         Ok(Self {
             device: device.clone(),
 
+        _phantom: std::marker::PhantomData,
         })
     }
 }
@@ -536,6 +545,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         Ok(Self {
             device: device.clone(),
 
+        _phantom: std::marker::PhantomData,
         })
     }
 }

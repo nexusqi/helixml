@@ -38,6 +38,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             verification_rules,
             quality_metrics: QualityMetrics::default(),
 
+        _phantom: std::marker::PhantomData,
         })
     }
     
@@ -452,6 +453,7 @@ impl Default for QualityMetrics {
             noise_level: 0.1,
             distribution_shape: 1.0,
 
+        _phantom: std::marker::PhantomData,
         }
     }
 }
@@ -476,6 +478,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         Ok(Self {
             device: device.clone(),
 
+        _phantom: std::marker::PhantomData,
         })
     }
     
