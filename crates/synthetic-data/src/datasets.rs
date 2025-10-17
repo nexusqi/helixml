@@ -13,6 +13,7 @@ pub type GeneratedTimeSeries<T> = Vec<T>;
 pub type GeneratedText<T> = Vec<T>;
 pub type GeneratedImages<T> = Vec<T>;
 pub type GeneratedGraphs<T> = Vec<T>;
+pub type GeneratedSequences<T> = Vec<T>;
 
 /// Pre-defined synthetic datasets
 pub struct SyntheticDatasets<T: Tensor> {
