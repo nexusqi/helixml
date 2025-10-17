@@ -167,6 +167,27 @@ pub trait TensorActivation: Tensor {
     
     /// Leaky ReLU activation
     fn leaky_relu(&self, negative_slope: f32) -> Result<Self>;
+    /// Negate tensor (element-wise)
+    fn neg(&self) -> Result<Self>;
+    
+    /// Create tensor from scalar value
+    fn from_scalar(value: f32, shape: Shape, dtype: DType, device: &Device) -> Result<Self>;
+    
+    /// Add scalar to all elements
+    fn add_scalar(&mut self, scalar: f32) -> Result<()>;
+    
+    /// Multiply all elements by scalar
+    fn mul_scalar(&mut self, scalar: f32) -> Result<()>;
+    
+    /// Greater than comparison (element-wise)
+    fn gt(&self, other: &Self) -> Result<Self>;
+    
+    /// Greater than scalar comparison
+    fn gt_scalar(&mut self, scalar: f32) -> Result<Self>;
+    
+    /// Extract scalar value from 0-dimensional or single-element tensor
+    fn to_scalar(&self) -> Result<f32>;
+
 }
 
 /// Random tensor generation
