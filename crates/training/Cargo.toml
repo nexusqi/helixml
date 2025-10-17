@@ -10,6 +10,7 @@ description = "🌀 HelixML Training System - Advanced training with loss functi
 [dependencies]
 # Core dependencies
 tensor-core = { path = "../tensor-core" }
+backend-cpu = { path = "../backend-cpu" }
 hal = { path = "../hal" }
 autograd = { path = "../autograd" }
 nn = { path = "../nn" }
