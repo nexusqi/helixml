@@ -237,6 +237,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 generation_time: 0.0,
                 quality_score: 0.95,
             },
+            _phantom: std::marker::PhantomData,
         })
     }
 }
@@ -287,6 +288,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 generation_time: 0.0,
                 quality_score: 0.90,
             },
+            _phantom: std::marker::PhantomData,
         })
     }
 }
@@ -337,6 +339,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 generation_time: 0.0,
                 quality_score: 0.85,
             },
+            _phantom: std::marker::PhantomData,
         })
     }
 }
@@ -385,6 +388,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 generation_time: 0.0,
                 quality_score: 0.88,
             },
+            _phantom: std::marker::PhantomData,
         })
     }
 }
@@ -433,6 +437,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 generation_time: 0.0,
                 quality_score: 0.92,
             },
+            _phantom: std::marker::PhantomData,
         })
     }
 }
@@ -481,6 +486,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 generation_time: 0.0,
                 quality_score: 0.87,
             },
+            _phantom: std::marker::PhantomData,
         })
     }
 }
@@ -529,6 +535,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 generation_time: 0.0,
                 quality_score: 0.89,
             },
+            _phantom: std::marker::PhantomData,
         })
     }
 }
@@ -577,6 +584,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 generation_time: 0.0,
                 quality_score: 0.93,
             },
+            _phantom: std::marker::PhantomData,
         })
     }
 }
