@@ -19,9 +19,9 @@ pub struct Trainer<M: Module<CpuTensor> + CheckpointableModule<CpuTensor>> {
     /// Loss function
     loss_fn: Box<dyn LossFunction<CpuTensor>>,
     /// Optimizer
-    optimizer: Box<dyn Optimizer<CpuTensor>>,
+    optimizer: Arc<Mutex<Box<dyn Optimizer<CpuTensor>>>>,
     /// Learning rate scheduler
-    scheduler: Box<dyn Scheduler<CpuTensor>>,
+    scheduler: Arc<Mutex<Box<dyn Scheduler<CpuTensor>>>>,
     /// Metrics tracker
     metrics: Arc<Mutex<Metrics>>,
     /// Checkpoint manager
@@ -158,6 +158,8 @@ impl<M: Module<CpuTensor> + CheckpointableModule<CpuTensor>> Trainer<M> {
         config: TrainingConfig,
     ) -> AnyResult<Self> {
         let model = Arc::new(Mutex::new(model));
+        let optimizer = Arc::new(Mutex::new(optimizer));
+        let scheduler = Arc::new(Mutex::new(scheduler));
         let metrics = Arc::new(Mutex::new(Metrics::new()));
         let checkpoint_manager = Arc::new(CheckpointManager::new()?);
         let monitor = Arc::new(TrainingMonitor::new());
@@ -298,7 +300,7 @@ impl<M: Module<CpuTensor> + CheckpointableModule<CpuTensor>> Trainer<M> {
         // self.optimizer.step(&gradients)?;
         
         // Clear gradients
-        self.optimizer.zero_grad()?;
+        self.optimizer.lock().unwrap().zero_grad()?;
         
         Ok(placeholder_loss)
     }

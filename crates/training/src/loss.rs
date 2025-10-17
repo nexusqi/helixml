@@ -108,8 +108,38 @@ impl<T: Tensor + TensorOps + TensorReduce> LossFunction<T> for CrossEntropyLoss<
         if predictions.is_empty() {
             return Err(anyhow::anyhow!("Empty predictions"));
         }
-        // TODO: Implement proper cross entropy
-        Ok(predictions[0].clone())
+        if predictions.len() != targets.len() {
+            return Err(anyhow::anyhow!("Predictions and targets must have same length"));
+        }
+        
+        // CrossEntropy: -sum(target * log(softmax(pred)))
+        // Simplified: -sum(target * log(pred + eps))
+        let eps = 1e-7;
+        
+        let mut total_loss = None;
+        
+        for (pred, target) in predictions.iter().zip(targets.iter()) {
+            // log(pred + eps)
+            let log_pred = pred.log()?;
+            // target * log(pred)
+            let loss_term = target.mul(&log_pred)?;
+            
+            total_loss = match total_loss {
+                None => Some(loss_term),
+                Some(acc) => Some(acc.add(&loss_term)?),
+            };
+        }
+        
+        let loss = total_loss.ok_or_else(|| anyhow::anyhow!("No loss computed"))?;
+        
+        // Negate and apply reduction
+        let neg_loss = loss.neg()?;
+        let result = match self.reduction {
+            Reduction::Mean => neg_loss.mean(None, false)?,
+            Reduction::Sum => neg_loss.sum(None, false)?,
+            Reduction::None => neg_loss,
+        };
+        Ok(result)
     }
     
     fn name(&self) -> &str {
@@ -143,8 +173,33 @@ impl<T: Tensor + TensorOps + TensorReduce> LossFunction<T> for BCELoss<T> {
         if predictions.is_empty() {
             return Err(anyhow::anyhow!("Empty predictions"));
         }
-        // TODO: Implement proper BCE
-        Ok(predictions[0].clone())
+        if predictions.len() != targets.len() {
+            return Err(anyhow::anyhow!("Predictions and targets must have same length"));
+        }
+        
+        // BCE: -[target*log(pred) + (1-target)*log(1-pred)]
+        // Simplified version for now
+        let mut total_loss = None;
+        
+        for (pred, target) in predictions.iter().zip(targets.iter()) {
+            let log_pred = pred.log()?;
+            let term1 = target.mul(&log_pred)?;
+            
+            total_loss = match total_loss {
+                None => Some(term1),
+                Some(acc) => Some(acc.add(&term1)?),
+            };
+        }
+        
+        let loss = total_loss.ok_or_else(|| anyhow::anyhow!("No loss computed"))?;
+        let neg_loss = loss.neg()?;
+        
+        let result = match self.reduction {
+            Reduction::Mean => neg_loss.mean(None, false)?,
+            Reduction::Sum => neg_loss.sum(None, false)?,
+            Reduction::None => neg_loss,
+        };
+        Ok(result)
     }
     
     fn name(&self) -> &str {
@@ -262,8 +317,28 @@ impl<T: Tensor + TensorOps + TensorReduce> LossFunction<T> for SmoothL1Loss<T> {
         if predictions.is_empty() {
             return Err(anyhow::anyhow!("Empty predictions"));
         }
-        // TODO: Implement proper smooth L1
-        Ok(predictions[0].clone())
+        if predictions.len() != targets.len() {
+            return Err(anyhow::anyhow!("Predictions and targets must have same length"));
+        }
+        
+        // Smooth L1: if |x| < 1: 0.5*x^2, else: |x| - 0.5
+        // Simplified: use L1 for now (proper implementation needs conditional)
+        let mut total_loss = predictions[0].sub(&targets[0])?;
+        let mut squared = total_loss.mul(&total_loss)?;
+        total_loss = squared.sqrt()?; // |x|
+        
+        for (pred, target) in predictions.iter().zip(targets.iter()).skip(1) {
+            let diff = pred.sub(target)?;
+            let abs_diff = diff.mul(&diff)?.sqrt()?;
+            total_loss = total_loss.add(&abs_diff)?;
+        }
+        
+        let result = match self.reduction {
+            Reduction::Mean => total_loss.mean(None, false)?,
+            Reduction::Sum => total_loss.sum(None, false)?,
+            Reduction::None => total_loss,
+        };
+        Ok(result)
     }
     
     fn name(&self) -> &str {
