@@ -318,7 +318,7 @@ impl<T: Tensor> Benchmark<T> {
         Self {
             name: name.to_string(),
             benchmark_type,
-            device: Device::CPU, // Placeholder
+            device: Device::Cpu, // Placeholder
         _phantom: std::marker::PhantomData,
 
         }
