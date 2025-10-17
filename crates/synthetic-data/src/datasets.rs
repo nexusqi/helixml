@@ -15,11 +15,10 @@ pub type GeneratedImages<T> = Vec<T>;
 pub type GeneratedGraphs<T> = Vec<T>;
 
 /// Pre-defined synthetic datasets
-#[derive(Debug)]
 pub struct SyntheticDatasets<T: Tensor> {
     device: Device,
     dataset_registry: HashMap<String, Box<dyn DatasetGenerator<T>>>,
-_phantom: std::marker::PhantomData<T>,
+    _phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> SyntheticDatasets<T> {
