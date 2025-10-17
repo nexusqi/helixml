@@ -1,0 +1,11 @@
+[package]
+name = "hammer_example"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hammer = { path = "../../crates/hammer" }
+backend-cpu = { path = "../../crates/backend-cpu" }
+tensor-core = { path = "../../crates/tensor-core" }
+anyhow = "1.0"
+

@@ -1,6 +1,6 @@
 //! Core tensor trait and operations
 
-use crate::{DType, Device, Shape, Result, TensorError};
+use crate::{DType, Device, Shape, Result};
 use serde::{Deserialize, Serialize};
 
 /// Core tensor trait for all tensor implementations
@@ -99,6 +99,9 @@ pub trait TensorOps: Tensor {
     /// Absolute value
     fn abs(&self) -> Result<Self>;
     
+    /// Sign function (-1, 0, 1)
+    fn sign(&self) -> Result<Self>;
+    
     /// Maximum of two tensors
     fn max(&self, other: &Self) -> Result<Self>;
     
@@ -107,6 +110,42 @@ pub trait TensorOps: Tensor {
     
     /// Clamp values between min and max
     fn clamp(&self, min: f32, max: f32) -> Result<Self>;
+    
+    /// Negate tensor (element-wise)
+    fn neg(&self) -> Result<Self>;
+    
+    /// Create tensor filled with a scalar value
+    fn from_scalar(value: f32, shape: Shape, dtype: DType, device: &Device) -> Result<Self>;
+    
+    /// Add scalar to tensor
+    fn add_scalar(&self, scalar: f32) -> Result<Self>;
+    
+    /// Multiply tensor by scalar
+    fn mul_scalar(&self, scalar: f32) -> Result<Self>;
+    
+    /// Greater than comparison with another tensor
+    fn gt(&self, other: &Self) -> Result<Self>;
+    
+    /// Greater than comparison with scalar
+    fn gt_scalar(&self, threshold: f32) -> Result<Self>;
+    
+    /// Extract scalar value from 0-dimensional or single-element tensor
+    fn to_scalar(&self) -> Result<f32>;
+}
+
+/// Broadcasting operations
+pub trait TensorBroadcast: Tensor {
+    /// Broadcast tensor to target shape
+    fn broadcast_to(&self, shape: Shape) -> Result<Self>;
+    
+    /// Expand tensor dimensions
+    fn expand(&self, shape: Shape) -> Result<Self>;
+    
+    /// Unsqueeze (add dimension of size 1)
+    fn unsqueeze(&self, dim: usize) -> Result<Self>;
+    
+    /// Squeeze (remove dimensions of size 1)
+    fn squeeze(&self, dim: Option<usize>) -> Result<Self>;
 }
 
 /// Reduction operations
@@ -167,27 +206,6 @@ pub trait TensorActivation: Tensor {
     
     /// Leaky ReLU activation
     fn leaky_relu(&self, negative_slope: f32) -> Result<Self>;
-    /// Negate tensor (element-wise)
-    fn neg(&self) -> Result<Self>;
-    
-    /// Create tensor from scalar value
-    fn from_scalar(value: f32, shape: Shape, dtype: DType, device: &Device) -> Result<Self>;
-    
-    /// Add scalar to all elements
-    fn add_scalar(&mut self, scalar: f32) -> Result<()>;
-    
-    /// Multiply all elements by scalar
-    fn mul_scalar(&mut self, scalar: f32) -> Result<()>;
-    
-    /// Greater than comparison (element-wise)
-    fn gt(&self, other: &Self) -> Result<Self>;
-    
-    /// Greater than scalar comparison
-    fn gt_scalar(&mut self, scalar: f32) -> Result<Self>;
-    
-    /// Extract scalar value from 0-dimensional or single-element tensor
-    fn to_scalar(&self) -> Result<f32>;
-
 }
 
 /// Random tensor generation
@@ -212,4 +230,46 @@ pub trait TensorRandom: Tensor {
     
     /// Create tensor with range of values
     fn arange(start: f32, end: f32, step: f32, dtype: DType, device: &Device) -> Result<Self>;
+}
+
+/// Mixed precision operations
+pub trait TensorMixedPrecision: Tensor {
+    /// Convert tensor to different data type
+    fn cast(&self, dtype: DType) -> Result<Self>;
+    
+    /// Convert to FP16 (half precision)
+    fn to_f16(&self) -> Result<Self> {
+        self.cast(DType::F16)
+    }
+    
+    /// Convert to FP32 (single precision)
+    fn to_f32(&self) -> Result<Self> {
+        self.cast(DType::F32)
+    }
+    
+    /// Convert to FP64 (double precision)
+    fn to_f64(&self) -> Result<Self> {
+        self.cast(DType::F64)
+    }
+    
+    /// Convert to INT8
+    fn to_i8(&self) -> Result<Self> {
+        self.cast(DType::I8)
+    }
+    
+    /// Convert to INT32
+    fn to_i32(&self) -> Result<Self> {
+        self.cast(DType::I32)
+    }
+    
+    /// Quantize tensor to INT8 with scale and zero point
+    fn quantize_int8(&self, scale: f32, zero_point: i8) -> Result<Self>;
+    
+    /// Dequantize INT8 tensor back to FP32
+    fn dequantize_int8(&self, scale: f32, zero_point: i8) -> Result<Self>;
+    
+    /// Check if tensor supports mixed precision
+    fn supports_mixed_precision(&self) -> bool {
+        true // Default implementation
+    }
 }

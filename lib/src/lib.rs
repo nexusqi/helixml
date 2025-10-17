@@ -24,8 +24,8 @@ pub use topo_memory::*;
 // Re-export meaning induction components
 pub use meanings::*;
 
-// Re-export geometric components
-pub use geometry::*;
+// Re-export geometric components (use crate:: to disambiguate)
+pub use crate::geometry as helix_geometry;
 
 // Re-export scheduling components
 pub use scheduling::*;

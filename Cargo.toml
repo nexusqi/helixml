@@ -7,6 +7,7 @@ members = [
     "crates/backend-cpu", 
         "crates/backend-cuda",
         "crates/autograd",
+        "crates/hammer",
         "crates/nn",
         "crates/data-pipeline",
     "crates/optim",
@@ -36,6 +37,7 @@ members = [
            "examples/synthetic_data_example",
            "examples/multimodal_example",
            "examples/adaptive_scheduler_example",
+           "examples/hammer_example",
            "benches"
 , "test_helix_project"]
 
