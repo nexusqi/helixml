@@ -6,13 +6,14 @@
 use tensor_core::{Tensor, Shape, DType, Device, Result};
 use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
 use std::collections::HashMap;
+use anyhow::Context;
 
 // Type aliases for generated data
+pub type GeneratedSequences<T> = Vec<T>;
 pub type GeneratedTimeSeries<T> = Vec<T>;
 pub type GeneratedText<T> = Vec<T>;
 pub type GeneratedImages<T> = Vec<T>;
 pub type GeneratedGraphs<T> = Vec<T>;
-use anyhow::Context;
 
 /// Main data verifier for synthetic data quality assurance
 #[derive(Debug)]
