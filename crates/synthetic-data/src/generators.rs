@@ -9,6 +9,12 @@ use rand::{Rng, SeedableRng};
 use rand_distr::{Distribution, Normal, Uniform, Beta, Gamma};
 use std::collections::HashMap;
 
+// Type aliases for generated data
+pub type GeneratedTimeSeries<T> = Vec<T>;
+pub type GeneratedText<T> = Vec<T>;
+pub type GeneratedImages<T> = Vec<T>;
+pub type GeneratedGraphs<T> = Vec<T>;
+
 /// Sequence generator for synthetic sequence data
 #[derive(Debug)]
 pub struct SequenceGenerator<T: Tensor> {
@@ -487,6 +493,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             features,
             labels,
             num_classes,
+            _phantom: std::marker::PhantomData,
         })
     }
     
@@ -506,6 +513,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         Ok(RegressionDataset {
             features,
             targets,
+            _phantom: std::marker::PhantomData,
         })
     }
 }

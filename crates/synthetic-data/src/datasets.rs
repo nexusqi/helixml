@@ -8,6 +8,12 @@ use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedP
 use std::collections::HashMap;
 use anyhow::Context;
 
+// Type aliases for generated data
+pub type GeneratedTimeSeries<T> = Vec<T>;
+pub type GeneratedText<T> = Vec<T>;
+pub type GeneratedImages<T> = Vec<T>;
+pub type GeneratedGraphs<T> = Vec<T>;
+
 /// Pre-defined synthetic datasets
 #[derive(Debug)]
 pub struct SyntheticDatasets<T: Tensor> {
@@ -231,6 +237,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 generation_time: 0.0,
                 quality_score: 0.95,
             },
+        _phantom: std::marker::PhantomData,
         })
     }
 }
@@ -281,6 +288,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 generation_time: 0.0,
                 quality_score: 0.90,
             },
+        _phantom: std::marker::PhantomData,
         })
     }
 }
@@ -331,6 +339,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 generation_time: 0.0,
                 quality_score: 0.85,
             },
+        _phantom: std::marker::PhantomData,
         })
     }
 }
@@ -379,6 +388,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 generation_time: 0.0,
                 quality_score: 0.88,
             },
+        _phantom: std::marker::PhantomData,
         })
     }
 }
@@ -427,6 +437,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 generation_time: 0.0,
                 quality_score: 0.92,
             },
+        _phantom: std::marker::PhantomData,
         })
     }
 }
@@ -475,6 +486,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 generation_time: 0.0,
                 quality_score: 0.87,
             },
+        _phantom: std::marker::PhantomData,
         })
     }
 }
@@ -523,6 +535,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 generation_time: 0.0,
                 quality_score: 0.89,
             },
+        _phantom: std::marker::PhantomData,
         })
     }
 }
@@ -571,6 +584,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 generation_time: 0.0,
                 quality_score: 0.93,
             },
+        _phantom: std::marker::PhantomData,
         })
     }
 }
