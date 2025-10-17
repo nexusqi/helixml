@@ -16,6 +16,7 @@ pub struct SequenceGenerator<T: Tensor> {
     batch_size: usize,
     vocabulary_size: usize,
     device: Device,
+    _phantom: std::marker::PhantomData<T>,
     rng: rand::rngs::StdRng,
 }
 
@@ -94,7 +95,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     
     fn generate_noise(&mut self) -> Result<T> {
         let shape = Shape::new(vec![self.sequence_length]);
-        let noise = T::randn(shape, DType::F32, &self.device)?;
+        let noise = T::random_normal(shape, DType::F32, &self.device)?;
         Ok(noise.mul_scalar(0.1)?)
     }
 }
@@ -105,6 +106,7 @@ pub struct ImageGenerator<T: Tensor> {
     dimensions: (usize, usize, usize), // (height, width, channels)
     batch_size: usize,
     device: Device,
+    _phantom: std::marker::PhantomData<T>,
     rng: rand::rngs::StdRng,
 }
 
@@ -134,7 +136,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         let shape = Shape::new(vec![height, width, channels]);
         
         // Generate base noise
-        let mut image = T::randn(shape, DType::F32, &self.device)?;
+        let mut image = T::random_normal(shape, DType::F32, &self.device)?;
         
         // Add structured patterns
         let patterns = self.generate_image_patterns()?;
@@ -168,6 +170,7 @@ pub struct GraphGenerator<T: Tensor> {
     num_nodes: usize,
     batch_size: usize,
     device: Device,
+    _phantom: std::marker::PhantomData<T>,
     rng: rand::rngs::StdRng,
 }
 
@@ -220,7 +223,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     fn generate_node_features(&mut self) -> Result<T> {
         let feature_dim = 16; // Node feature dimension
         let shape = Shape::new(vec![self.num_nodes, feature_dim]);
-        let features = T::randn(shape, DType::F32, &self.device)?;
+        let features = T::random_normal(shape, DType::F32, &self.device)?;
         Ok(features)
     }
 }
@@ -231,6 +234,7 @@ pub struct TimeSeriesGenerator<T: Tensor> {
     series_length: usize,
     batch_size: usize,
     device: Device,
+    _phantom: std::marker::PhantomData<T>,
     rng: rand::rngs::StdRng,
 }
 
@@ -312,7 +316,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     
     fn generate_noise_component(&mut self) -> Result<T> {
         let shape = Shape::new(vec![self.series_length]);
-        let noise = T::randn(shape, DType::F32, &self.device)?;
+        let noise = T::random_normal(shape, DType::F32, &self.device)?;
         Ok(noise.mul_scalar(0.1)?)
     }
 }
@@ -323,6 +327,7 @@ pub struct TextGenerator<T: Tensor> {
     vocabulary_size: usize,
     sequence_length: usize,
     device: Device,
+    _phantom: std::marker::PhantomData<T>,
     rng: rand::rngs::StdRng,
 }
 
@@ -412,7 +417,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     pub fn generate_noise(&mut self, shape: Shape, noise_type: NoiseType) -> Result<T> {
         match noise_type {
             NoiseType::Gaussian => {
-                let noise = T::randn(shape, DType::F32, &self.device)?;
+                let noise = T::random_normal(shape, DType::F32, &self.device)?;
                 Ok(noise)
             }
             NoiseType::Uniform => {
@@ -421,12 +426,12 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             }
             NoiseType::Pink => {
                 // Generate pink noise (1/f noise)
-                let noise = T::randn(shape, DType::F32, &self.device)?;
+                let noise = T::random_normal(shape, DType::F32, &self.device)?;
                 Ok(noise)
             }
             NoiseType::Brownian => {
                 // Generate brownian noise
-                let noise = T::randn(shape, DType::F32, &self.device)?;
+                let noise = T::random_normal(shape, DType::F32, &self.device)?;
                 Ok(noise)
             }
         }
@@ -463,7 +468,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         let mut labels = Vec::new();
         
         for _ in 0..num_samples {
-            let feature = T::randn(Shape::new(vec![num_features]), DType::F32, &self.device)?;
+            let feature = T::random_normal(Shape::new(vec![num_features]), 0.0, 1.0, &self.device)?;
             let label = T::zeros(Shape::new(vec![num_classes]), DType::F32, &self.device)?;
             
             features.push(feature);
@@ -483,8 +488,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         let mut targets = Vec::new();
         
         for _ in 0..num_samples {
-            let feature = T::randn(Shape::new(vec![num_features]), DType::F32, &self.device)?;
-            let target = T::randn(Shape::new(vec![1]), DType::F32, &self.device)?;
+            let feature = T::random_normal(Shape::new(vec![num_features]), 0.0, 1.0, &self.device)?;
+            let target = T::random_normal(Shape::new(vec![1]), 0.0, 1.0, &self.device)?;
             
             features.push(feature);
             targets.push(target);

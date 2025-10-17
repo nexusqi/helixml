@@ -47,7 +47,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         let mut data = Vec::new();
         
         // Simplified loading - in practice, you'd implement proper deserialization
-        let tensor = T::randn(Shape::new(vec![100]), DType::F32, &self.device)?;
+        let tensor = T::random_normal(Shape::new(vec![100]), 0.0, 1.0, &self.device)?;
         data.push(tensor);
         
         Ok(data)
@@ -93,7 +93,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     
     /// Add noise to data
     pub fn add_noise(&self, data: &T, noise_level: f32) -> Result<T> {
-        let noise = T::randn(data.shape(), data.dtype(), &self.device)?;
+        let noise = T::random_normal(data.shape(), data.dtype(), &self.device)?;
         let scaled_noise = noise.mul_scalar(noise_level)?;
         let noisy_data = data.add(&scaled_noise)?;
         Ok(noisy_data)
@@ -264,7 +264,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     /// Deserialize tensor from bytes
     fn deserialize_tensor(&self, data: &[u8]) -> Result<T> {
         // Simplified deserialization - in practice, you'd implement proper deserialization
-        T::randn(Shape::new(vec![100]), DType::F32, &self.device)
+        T::random_normal(Shape::new(vec![100]), 0.0, 1.0, &self.device)
     }
 }
 

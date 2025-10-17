@@ -202,11 +202,11 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         
         for _ in 0..config.num_samples {
             // Generate features
-            let feature = T::randn(Shape::new(vec![config.num_features]), DType::F32, &self.device)?;
+            let feature = T::random_normal(Shape::new(vec![config.num_features]), 0.0, 1.0, &self.device)?;
             features.push(feature);
             
             // Generate target with linear relationship
-            let target = T::randn(Shape::new(vec![1]), DType::F32, &self.device)?;
+            let target = T::random_normal(Shape::new(vec![1]), 0.0, 1.0, &self.device)?;
             targets.push(target);
         }
         
@@ -249,7 +249,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         
         for _ in 0..config.num_samples {
             // Generate features
-            let feature = T::randn(Shape::new(vec![config.num_features]), DType::F32, &self.device)?;
+            let feature = T::random_normal(Shape::new(vec![config.num_features]), 0.0, 1.0, &self.device)?;
             features.push(feature);
             
             // Generate target class
@@ -296,7 +296,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         
         for _ in 0..config.num_samples {
             // Generate features with cluster structure
-            let feature = T::randn(Shape::new(vec![config.num_features]), DType::F32, &self.device)?;
+            let feature = T::random_normal(Shape::new(vec![config.num_features]), 0.0, 1.0, &self.device)?;
             features.push(feature);
             
             // Generate cluster assignment
@@ -341,11 +341,11 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         
         for _ in 0..config.num_samples {
             // Generate time series features
-            let feature = T::randn(Shape::new(vec![config.num_features]), DType::F32, &self.device)?;
+            let feature = T::random_normal(Shape::new(vec![config.num_features]), 0.0, 1.0, &self.device)?;
             features.push(feature);
             
             // Generate time series target
-            let target = T::randn(Shape::new(vec![1]), DType::F32, &self.device)?;
+            let target = T::random_normal(Shape::new(vec![1]), 0.0, 1.0, &self.device)?;
             targets.push(target);
         }
         
@@ -386,11 +386,11 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         
         for _ in 0..config.num_samples {
             // Generate graph features
-            let feature = T::randn(Shape::new(vec![config.num_features]), DType::F32, &self.device)?;
+            let feature = T::random_normal(Shape::new(vec![config.num_features]), 0.0, 1.0, &self.device)?;
             features.push(feature);
             
             // Generate graph target
-            let target = T::randn(Shape::new(vec![1]), DType::F32, &self.device)?;
+            let target = T::random_normal(Shape::new(vec![1]), 0.0, 1.0, &self.device)?;
             targets.push(target);
         }
         
@@ -431,11 +431,11 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         
         for _ in 0..config.num_samples {
             // Generate image features
-            let feature = T::randn(Shape::new(vec![config.num_features]), DType::F32, &self.device)?;
+            let feature = T::random_normal(Shape::new(vec![config.num_features]), 0.0, 1.0, &self.device)?;
             features.push(feature);
             
             // Generate image target
-            let target = T::randn(Shape::new(vec![1]), DType::F32, &self.device)?;
+            let target = T::random_normal(Shape::new(vec![1]), 0.0, 1.0, &self.device)?;
             targets.push(target);
         }
         
@@ -476,11 +476,11 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         
         for _ in 0..config.num_samples {
             // Generate text features
-            let feature = T::randn(Shape::new(vec![config.num_features]), DType::F32, &self.device)?;
+            let feature = T::random_normal(Shape::new(vec![config.num_features]), 0.0, 1.0, &self.device)?;
             features.push(feature);
             
             // Generate text target
-            let target = T::randn(Shape::new(vec![1]), DType::F32, &self.device)?;
+            let target = T::random_normal(Shape::new(vec![1]), 0.0, 1.0, &self.device)?;
             targets.push(target);
         }
         
@@ -521,11 +521,11 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         
         for _ in 0..config.num_samples {
             // Generate multimodal features
-            let feature = T::randn(Shape::new(vec![config.num_features]), DType::F32, &self.device)?;
+            let feature = T::random_normal(Shape::new(vec![config.num_features]), 0.0, 1.0, &self.device)?;
             features.push(feature);
             
             // Generate multimodal target
-            let target = T::randn(Shape::new(vec![1]), DType::F32, &self.device)?;
+            let target = T::random_normal(Shape::new(vec![1]), 0.0, 1.0, &self.device)?;
             targets.push(target);
         }
         

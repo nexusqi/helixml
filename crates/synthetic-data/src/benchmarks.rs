@@ -173,7 +173,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         // Generate test sequences for benchmarking
         let mut sequences = Vec::new();
         for _ in 0..100 {
-            let sequence = T::randn(Shape::new(vec![1000]), DType::F32, &self.device)?;
+            let sequence = T::random_normal(Shape::new(vec![1000]), 0.0, 1.0, &self.device)?;
             sequences.push(sequence);
         }
         Ok(sequences)
@@ -183,7 +183,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         // Generate test images for benchmarking
         let mut images = Vec::new();
         for _ in 0..100 {
-            let image = T::randn(Shape::new(vec![64, 64, 3]), DType::F32, &self.device)?;
+            let image = T::random_normal(Shape::new(vec![64, 64, 3]), DType::F32, &self.device)?;
             images.push(image);
         }
         Ok(images)
@@ -193,7 +193,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         // Generate test graphs for benchmarking
         let mut graphs = Vec::new();
         for _ in 0..100 {
-            let graph = T::randn(Shape::new(vec![100, 100]), DType::F32, &self.device)?;
+            let graph = T::random_normal(Shape::new(vec![100, 100]), DType::F32, &self.device)?;
             graphs.push(graph);
         }
         Ok(graphs)
@@ -203,7 +203,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         // Generate test time series for benchmarking
         let mut time_series = Vec::new();
         for _ in 0..100 {
-            let series = T::randn(Shape::new(vec![500]), DType::F32, &self.device)?;
+            let series = T::random_normal(Shape::new(vec![500]), 0.0, 1.0, &self.device)?;
             time_series.push(series);
         }
         Ok(time_series)
@@ -213,7 +213,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         // Generate test text for benchmarking
         let mut text_data = Vec::new();
         for _ in 0..100 {
-            let text = T::randn(Shape::new(vec![1000]), DType::F32, &self.device)?;
+            let text = T::random_normal(Shape::new(vec![1000]), 0.0, 1.0, &self.device)?;
             text_data.push(text);
         }
         Ok(text_data)
@@ -454,7 +454,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         
         // Generate large tensors to test memory usage
         for _ in 0..100 {
-            let _tensor = T::randn(Shape::new(vec![1000, 1000]), DType::F32, device)?;
+            let _tensor = T::random_normal(Shape::new(vec![1000, 1000]), DType::F32, device)?;
         }
         
         let duration = start.elapsed();
@@ -489,8 +489,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         
         // Perform many operations to test throughput
         for _ in 0..1000 {
-            let tensor1 = T::randn(Shape::new(vec![100, 100]), DType::F32, device)?;
-            let tensor2 = T::randn(Shape::new(vec![100, 100]), DType::F32, device)?;
+            let tensor1 = T::random_normal(Shape::new(vec![100, 100]), DType::F32, device)?;
+            let tensor2 = T::random_normal(Shape::new(vec![100, 100]), DType::F32, device)?;
             let _result = tensor1.add(&tensor2)?;
         }
         
