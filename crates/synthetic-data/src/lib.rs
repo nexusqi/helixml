@@ -313,7 +313,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
 pub struct GeneratedSequences<T: Tensor> {
     pub sequences: Vec<T>,
     pub verification_result: Option<VerificationResult>,
-    pub validation_result: Option<ValidationResult>,
+    pub validation_result: Option<crate::validators::ValidationResult>,
     pub metadata: SequenceMetadata,
 }
 
@@ -321,7 +321,7 @@ pub struct GeneratedSequences<T: Tensor> {
 pub struct GeneratedImages<T: Tensor> {
     pub images: Vec<T>,
     pub verification_result: Option<VerificationResult>,
-    pub validation_result: Option<ValidationResult>,
+    pub validation_result: Option<crate::validators::ValidationResult>,
     pub metadata: ImageMetadata,
 }
 
@@ -329,7 +329,7 @@ pub struct GeneratedImages<T: Tensor> {
 pub struct GeneratedGraphs<T: Tensor> {
     pub graphs: Vec<T>,
     pub verification_result: Option<VerificationResult>,
-    pub validation_result: Option<ValidationResult>,
+    pub validation_result: Option<crate::validators::ValidationResult>,
     pub metadata: GraphMetadata,
 }
 
@@ -337,7 +337,7 @@ pub struct GeneratedGraphs<T: Tensor> {
 pub struct GeneratedTimeSeries<T: Tensor> {
     pub time_series: Vec<T>,
     pub verification_result: Option<VerificationResult>,
-    pub validation_result: Option<ValidationResult>,
+    pub validation_result: Option<crate::validators::ValidationResult>,
     pub metadata: TimeSeriesMetadata,
 }
 
@@ -345,7 +345,7 @@ pub struct GeneratedTimeSeries<T: Tensor> {
 pub struct GeneratedText<T: Tensor> {
     pub text_data: Vec<T>,
     pub verification_result: Option<VerificationResult>,
-    pub validation_result: Option<ValidationResult>,
+    pub validation_result: Option<crate::validators::ValidationResult>,
     pub metadata: TextMetadata,
 }
 
