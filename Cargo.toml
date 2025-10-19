@@ -85,7 +85,7 @@ tracing = "0.1"
 
 
 # CUDA
-cudarc = "0.9"
+cudarc = "0.17"
 cublas-sys = "0.1"
 
 # Quantization
