@@ -4,10 +4,9 @@
 //! multi-device orchestration in HelixML
 
 use adaptive_scheduler::*;
-use tensor_core::{Tensor, Shape, DType, Device, Result};
-use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
-use anyhow::Context;
+use tensor_core::{Shape, Device, Result};
 use tracing::{info, error, warn};
+use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -41,8 +40,8 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn run_basic_scheduling_example<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce>(
-    scheduler: &AdaptiveScheduler<T>
+async fn run_basic_scheduling_example(
+    scheduler: &AdaptiveScheduler
 ) -> Result<()> {
     info!("📋 Running basic scheduling example...");
     
@@ -54,8 +53,9 @@ async fn run_basic_scheduling_example<T: Tensor + TensorOps + TensorRandom + Ten
     let mut task_ids = Vec::new();
     for task in tasks {
         let task_id = scheduler.submit_task(task)?;
+        let task_id_clone = task_id.clone();
         task_ids.push(task_id);
-        info!("📤 Submitted task: {}", task_id.id);
+        info!("📤 Submitted task: {}", task_id_clone.id());
     }
     
     // Wait for tasks to complete
@@ -65,25 +65,25 @@ async fn run_basic_scheduling_example<T: Tensor + TensorOps + TensorRandom + Ten
             let status = scheduler.get_task_status(task_id)?;
             match status {
                 TaskStatus::Completed => {
-                    info!("✅ Task {} completed", task_id.id);
+                    info!("✅ Task {} completed", task_id.id());
                     break;
                 }
                 TaskStatus::Failed => {
-                    error!("❌ Task {} failed", task_id.id);
+                    error!("❌ Task {} failed", task_id.id());
                     break;
                 }
                 TaskStatus::Running => {
-                    info!("🔄 Task {} is running", task_id.id);
+                    info!("🔄 Task {} is running", task_id.id());
                 }
                 TaskStatus::Pending => {
-                    info!("⏳ Task {} is pending", task_id.id);
+                    info!("⏳ Task {} is pending", task_id.id());
                 }
                 _ => {}
             }
             
             attempts += 1;
             if attempts > 100 {
-                warn!("⏰ Task {} timed out", task_id.id);
+                warn!("⏰ Task {} timed out", task_id.id());
                 break;
             }
             
@@ -95,8 +95,8 @@ async fn run_basic_scheduling_example<T: Tensor + TensorOps + TensorRandom + Ten
     Ok(())
 }
 
-async fn run_load_balancing_example<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce>(
-    scheduler: &AdaptiveScheduler<T>
+async fn run_load_balancing_example(
+    scheduler: &AdaptiveScheduler
 ) -> Result<()> {
     info!("⚖️ Running load balancing example...");
     
@@ -118,13 +118,13 @@ async fn run_load_balancing_example<T: Tensor + TensorOps + TensorRandom + Tenso
     // Submit heavy tasks
     for task in heavy_tasks {
         let task_id = scheduler.submit_task(task)?;
-        info!("📤 Submitted heavy task: {}", task_id.id);
+        info!("📤 Submitted heavy task: {}", task_id.id());
     }
     
     // Submit light tasks
     for task in light_tasks {
         let task_id = scheduler.submit_task(task)?;
-        info!("📤 Submitted light task: {}", task_id.id);
+        info!("📤 Submitted light task: {}", task_id.id());
     }
     
     // Monitor load distribution
@@ -148,8 +148,8 @@ async fn run_load_balancing_example<T: Tensor + TensorOps + TensorRandom + Tenso
     Ok(())
 }
 
-async fn run_optimization_example<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce>(
-    scheduler: &AdaptiveScheduler<T>
+async fn run_optimization_example(
+    scheduler: &AdaptiveScheduler
 ) -> Result<()> {
     info!("🚀 Running optimization example...");
     
@@ -165,7 +165,7 @@ async fn run_optimization_example<T: Tensor + TensorOps + TensorRandom + TensorB
     // Submit tasks
     for task in tasks_with_deps {
         let task_id = scheduler.submit_task(task)?;
-        info!("📤 Submitted task with dependencies: {}", task_id.id);
+        info!("📤 Submitted task with dependencies: {}", task_id.id());
     }
     
     // Monitor optimization
@@ -181,8 +181,8 @@ async fn run_optimization_example<T: Tensor + TensorOps + TensorRandom + TensorB
     Ok(())
 }
 
-async fn run_policy_example<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce>(
-    scheduler: &AdaptiveScheduler<T>
+async fn run_policy_example(
+    scheduler: &AdaptiveScheduler
 ) -> Result<()> {
     info!("📋 Running policy example...");
     
@@ -197,17 +197,17 @@ async fn run_policy_example<T: Tensor + TensorOps + TensorRandom + TensorBroadca
     // Submit tasks in order of priority
     for task in critical_tasks {
         let task_id = scheduler.submit_task(task)?;
-        info!("🚨 Submitted critical task: {}", task_id.id);
+        info!("🚨 Submitted critical task: {}", task_id.id());
     }
     
     for task in normal_tasks {
         let task_id = scheduler.submit_task(task)?;
-        info!("📝 Submitted normal task: {}", task_id.id);
+        info!("📝 Submitted normal task: {}", task_id.id());
     }
     
     for task in low_priority_tasks {
         let task_id = scheduler.submit_task(task)?;
-        info!("📄 Submitted low-priority task: {}", task_id.id);
+        info!("📄 Submitted low-priority task: {}", task_id.id());
     }
     
     // Monitor task execution order
@@ -227,8 +227,8 @@ async fn run_policy_example<T: Tensor + TensorOps + TensorRandom + TensorBroadca
     Ok(())
 }
 
-async fn run_metrics_example<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce>(
-    scheduler: &AdaptiveScheduler<T>
+async fn run_metrics_example(
+    scheduler: &AdaptiveScheduler
 ) -> Result<()> {
     info!("📊 Running metrics example...");
     
@@ -261,8 +261,8 @@ async fn run_metrics_example<T: Tensor + TensorOps + TensorRandom + TensorBroadc
     Ok(())
 }
 
-async fn run_adaptive_example<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce>(
-    scheduler: &AdaptiveScheduler<T>
+async fn run_adaptive_example(
+    scheduler: &AdaptiveScheduler
 ) -> Result<()> {
     info!("🧠 Running adaptive example...");
     
@@ -273,7 +273,7 @@ async fn run_adaptive_example<T: Tensor + TensorOps + TensorRandom + TensorBroad
     // Submit tasks
     for task in mixed_tasks {
         let task_id = scheduler.submit_task(task)?;
-        info!("📤 Submitted mixed task: {}", task_id.id);
+        info!("📤 Submitted mixed task: {}", task_id.id());
     }
     
     // Monitor adaptive behavior
@@ -290,7 +290,7 @@ async fn run_adaptive_example<T: Tensor + TensorOps + TensorRandom + TensorBroad
         let loads: Vec<f32> = device_status.values().map(|s| s.current_load).collect();
         if !loads.is_empty() {
             let average_load = loads.iter().sum::<f32>() / loads.len() as f32;
-            let max_load = loads.iter().fold(0.0, |a, &b| a.max(b));
+            let max_load: f32 = loads.iter().fold(0.0, |a, &b| a.max(b));
             let load_variance = max_load - average_load;
             
             if load_variance > 0.3 {
@@ -308,14 +308,14 @@ async fn run_adaptive_example<T: Tensor + TensorOps + TensorRandom + TensorBroad
 }
 
 /// Create sample tasks
-fn create_sample_tasks() -> Result<Vec<Task<()>>> {
+fn create_sample_tasks() -> Result<Vec<Task>> {
     let mut tasks = Vec::new();
     
     for i in 0..10 {
         let task = Task {
             operation: TaskOperation::TensorOperation {
                 operation: TensorOp::Add,
-                inputs: vec![],
+                input_shapes: vec![Shape::new(vec![100, 100])],
                 output_shape: Shape::new(vec![100, 100]),
             },
             priority: TaskPriority::Normal,
@@ -338,14 +338,14 @@ fn create_sample_tasks() -> Result<Vec<Task<()>>> {
 }
 
 /// Create heavy tasks
-fn create_heavy_tasks() -> Result<Vec<Task<()>>> {
+fn create_heavy_tasks() -> Result<Vec<Task>> {
     let mut tasks = Vec::new();
     
     for _ in 0..5 {
         let task = Task {
             operation: TaskOperation::TensorOperation {
                 operation: TensorOp::MatrixMultiply,
-                inputs: vec![],
+                input_shapes: vec![Shape::new(vec![1000, 100]), Shape::new(vec![100, 1000])],
                 output_shape: Shape::new(vec![1000, 1000]),
             },
             priority: TaskPriority::High,
@@ -356,7 +356,7 @@ fn create_heavy_tasks() -> Result<Vec<Task<()>>> {
                 storage: 1024 * 1024, // 1MB
             },
             device_requirements: DeviceRequirements {
-                device_types: vec![Device::CPU, Device::CUDA(0)],
+                device_types: vec![Device::Cpu, Device::Cuda(0)],
                 min_memory: 1024 * 1024 * 1024,
                 min_compute_capability: 5.0,
                 special_features: vec!["cuda".to_string()],
@@ -373,14 +373,14 @@ fn create_heavy_tasks() -> Result<Vec<Task<()>>> {
 }
 
 /// Create light tasks
-fn create_light_tasks() -> Result<Vec<Task<()>>> {
+fn create_light_tasks() -> Result<Vec<Task>> {
     let mut tasks = Vec::new();
     
     for _ in 0..15 {
         let task = Task {
             operation: TaskOperation::TensorOperation {
                 operation: TensorOp::Add,
-                inputs: vec![],
+                input_shapes: vec![Shape::new(vec![10, 10])],
                 output_shape: Shape::new(vec![10, 10]),
             },
             priority: TaskPriority::Low,
@@ -403,7 +403,7 @@ fn create_light_tasks() -> Result<Vec<Task<()>>> {
 }
 
 /// Create tasks with dependencies
-fn create_tasks_with_dependencies() -> Result<Vec<Task<()>>> {
+fn create_tasks_with_dependencies() -> Result<Vec<Task>> {
     let mut tasks = Vec::new();
     
     // Create a chain of dependent tasks
@@ -411,7 +411,7 @@ fn create_tasks_with_dependencies() -> Result<Vec<Task<()>>> {
         let task = Task {
             operation: TaskOperation::TensorOperation {
                 operation: TensorOp::MatrixMultiply,
-                inputs: vec![],
+                input_shapes: vec![Shape::new(vec![100, 50]), Shape::new(vec![50, 100])],
                 output_shape: Shape::new(vec![100, 100]),
             },
             priority: TaskPriority::Normal,
@@ -434,14 +434,14 @@ fn create_tasks_with_dependencies() -> Result<Vec<Task<()>>> {
 }
 
 /// Create critical tasks
-fn create_critical_tasks() -> Result<Vec<Task<()>>> {
+fn create_critical_tasks() -> Result<Vec<Task>> {
     let mut tasks = Vec::new();
     
     for _ in 0..3 {
         let task = Task {
             operation: TaskOperation::TensorOperation {
                 operation: TensorOp::MatrixMultiply,
-                inputs: vec![],
+                input_shapes: vec![Shape::new(vec![500, 250]), Shape::new(vec![250, 500])],
                 output_shape: Shape::new(vec![500, 500]),
             },
             priority: TaskPriority::Critical,
@@ -452,7 +452,7 @@ fn create_critical_tasks() -> Result<Vec<Task<()>>> {
                 storage: 0,
             },
             device_requirements: DeviceRequirements {
-                device_types: vec![Device::CUDA(0)],
+                device_types: vec![Device::Cuda(0)],
                 min_memory: 512 * 1024 * 1024,
                 min_compute_capability: 7.0,
                 special_features: vec!["cuda".to_string()],
@@ -469,14 +469,14 @@ fn create_critical_tasks() -> Result<Vec<Task<()>>> {
 }
 
 /// Create normal tasks
-fn create_normal_tasks() -> Result<Vec<Task<()>>> {
+fn create_normal_tasks() -> Result<Vec<Task>> {
     let mut tasks = Vec::new();
     
     for _ in 0..7 {
         let task = Task {
             operation: TaskOperation::TensorOperation {
                 operation: TensorOp::Add,
-                inputs: vec![],
+                input_shapes: vec![Shape::new(vec![100, 100])],
                 output_shape: Shape::new(vec![100, 100]),
             },
             priority: TaskPriority::Normal,
@@ -499,14 +499,14 @@ fn create_normal_tasks() -> Result<Vec<Task<()>>> {
 }
 
 /// Create low priority tasks
-fn create_low_priority_tasks() -> Result<Vec<Task<()>>> {
+fn create_low_priority_tasks() -> Result<Vec<Task>> {
     let mut tasks = Vec::new();
     
     for _ in 0..10 {
         let task = Task {
             operation: TaskOperation::TensorOperation {
                 operation: TensorOp::Add,
-                inputs: vec![],
+                input_shapes: vec![Shape::new(vec![50, 50])],
                 output_shape: Shape::new(vec![50, 50]),
             },
             priority: TaskPriority::Low,
@@ -529,7 +529,7 @@ fn create_low_priority_tasks() -> Result<Vec<Task<()>>> {
 }
 
 /// Create mixed tasks
-fn create_mixed_tasks() -> Result<Vec<Task<()>>> {
+fn create_mixed_tasks() -> Result<Vec<Task>> {
     let mut tasks = Vec::new();
     
     // Add some of each type

@@ -127,6 +127,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     /// Generate synthetic sequence data
     pub fn generate_sequences(&mut self, count: usize) -> Result<GeneratedSequences<T>> {
         let sequences = self.sequence_generator.generate_sequences(count)?;
+        let metadata = self.compute_sequence_metadata(&sequences)?;
         
         if self.config.verification_enabled {
             let verification_result = self.verifier.verify_sequences(&sequences)?;
@@ -134,16 +135,16 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             
             Ok(GeneratedSequences {
                 sequences,
-                verification_result,
-                validation_result,
-                metadata: self.compute_sequence_metadata(&sequences)?,
+                verification_result: Some(verification_result),
+                validation_result: Some(validation_result),
+                metadata,
             })
         } else {
             Ok(GeneratedSequences {
                 sequences,
                 verification_result: None,
                 validation_result: None,
-                metadata: self.compute_sequence_metadata(&sequences)?,
+                metadata,
             })
         }
     }
@@ -151,6 +152,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     /// Generate synthetic image data
     pub fn generate_images(&mut self, count: usize) -> Result<GeneratedImages<T>> {
         let images = self.image_generator.generate_images(count)?;
+        let metadata = self.compute_image_metadata(&images)?;
         
         if self.config.verification_enabled {
             let verification_result = self.verifier.verify_images(&images)?;
@@ -158,16 +160,16 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             
             Ok(GeneratedImages {
                 images,
-                verification_result,
-                validation_result,
-                metadata: self.compute_image_metadata(&images)?,
+                verification_result: Some(verification_result),
+                validation_result: Some(validation_result),
+                metadata,
             })
         } else {
             Ok(GeneratedImages {
                 images,
                 verification_result: None,
                 validation_result: None,
-                metadata: self.compute_image_metadata(&images)?,
+                metadata,
             })
         }
     }
@@ -175,6 +177,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     /// Generate synthetic graph data
     pub fn generate_graphs(&mut self, count: usize) -> Result<GeneratedGraphs<T>> {
         let graphs = self.graph_generator.generate_graphs(count)?;
+        let metadata = self.compute_graph_metadata(&graphs)?;
         
         if self.config.verification_enabled {
             let verification_result = self.verifier.verify_graphs(&graphs)?;
@@ -182,16 +185,16 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             
             Ok(GeneratedGraphs {
                 graphs,
-                verification_result,
-                validation_result,
-                metadata: self.compute_graph_metadata(&graphs)?,
+                verification_result: Some(verification_result),
+                validation_result: Some(validation_result),
+                metadata,
             })
         } else {
             Ok(GeneratedGraphs {
                 graphs,
                 verification_result: None,
                 validation_result: None,
-                metadata: self.compute_graph_metadata(&graphs)?,
+                metadata,
             })
         }
     }
@@ -199,6 +202,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     /// Generate synthetic time series data
     pub fn generate_time_series(&mut self, count: usize) -> Result<GeneratedTimeSeries<T>> {
         let time_series = self.time_series_generator.generate_time_series(count)?;
+        let metadata = self.compute_time_series_metadata(&time_series)?;
         
         if self.config.verification_enabled {
             let verification_result = self.verifier.verify_time_series(&time_series)?;
@@ -206,16 +210,16 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             
             Ok(GeneratedTimeSeries {
                 time_series,
-                verification_result,
-                validation_result,
-                metadata: self.compute_time_series_metadata(&time_series)?,
+                verification_result: Some(verification_result),
+                validation_result: Some(validation_result),
+                metadata,
             })
         } else {
             Ok(GeneratedTimeSeries {
                 time_series,
                 verification_result: None,
                 validation_result: None,
-                metadata: self.compute_time_series_metadata(&time_series)?,
+                metadata,
             })
         }
     }
@@ -223,6 +227,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     /// Generate synthetic text data
     pub fn generate_text(&mut self, count: usize) -> Result<GeneratedText<T>> {
         let text_data = self.text_generator.generate_text(count)?;
+        let metadata = self.compute_text_metadata(&text_data)?;
         
         if self.config.verification_enabled {
             let verification_result = self.verifier.verify_text(&text_data)?;
@@ -230,16 +235,16 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             
             Ok(GeneratedText {
                 text_data,
-                verification_result,
-                validation_result,
-                metadata: self.compute_text_metadata(&text_data)?,
+                verification_result: Some(verification_result),
+                validation_result: Some(validation_result),
+                metadata,
             })
         } else {
             Ok(GeneratedText {
                 text_data,
                 verification_result: None,
                 validation_result: None,
-                metadata: self.compute_text_metadata(&text_data)?,
+                metadata,
             })
         }
     }
@@ -252,13 +257,22 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         let time_series = self.generate_time_series(count)?;
         let text = self.generate_text(count)?;
         
+        let cross_modal_verification = {
+            let verifier_result = self.verifier.verify_cross_modal(&sequences.sequences, &images.images, &graphs.graphs, &time_series.time_series, &text.text_data)?;
+            CrossModalVerification {
+                consistency_score: verifier_result.consistency_score,
+                alignment_score: verifier_result.alignment_score,
+                coherence_score: verifier_result.coherence_score,
+            }
+        };
+        
         Ok(GeneratedMultiModal {
             sequences,
             images,
             graphs,
             time_series,
             text,
-            cross_modal_verification: self.verifier.verify_cross_modal(&sequences, &images, &graphs, &time_series, &text)?,
+            cross_modal_verification,
         })
     }
     

@@ -1,9 +1,9 @@
 //! Integration tests for meanings crate
 
-use meanings::*;
 use meanings::bootstrap::*;
 use topo_memory::*;
 use tensor_core::*;
+use backend_cpu::CpuTensor;
 
 #[test]
 fn test_bootstrap_config_default() {
@@ -24,7 +24,7 @@ fn test_bootstrap_span_processing() {
     let device = Device::cpu();
     let d_model = 32;
     
-    let mut topo_memory = TopologicalMemory::new(d_model, 5, 0.6, 0.8, &device).unwrap();
+    let mut topo_memory = TopologicalMemory::<CpuTensor>::new(d_model, 5, 0.6, 0.8, &device).unwrap();
     let config = BootstrapCfg::default();
     
     // Test with simple byte sequence
@@ -44,7 +44,7 @@ fn test_batch_stats_processing() {
     let device = Device::cpu();
     let d_model = 32;
     
-    let mut topo_memory = TopologicalMemory::new(d_model, 5, 0.6, 0.8, &device).unwrap();
+    let mut topo_memory = TopologicalMemory::<CpuTensor>::new(d_model, 5, 0.6, 0.8, &device).unwrap();
     
     let stats = BatchStats {
         repetition: 0.5,
@@ -53,7 +53,7 @@ fn test_batch_stats_processing() {
         phase_sync: 0.6,
     };
     
-    observe_batch(stats, &mut topo_memory).unwrap();
+    observe_batch(stats.clone(), &mut topo_memory).unwrap();
     
     // Should update memory without errors
     let link_stats = topo_memory.get_link_stats();
@@ -65,7 +65,7 @@ fn test_replay_functionality() {
     let device = Device::cpu();
     let d_model = 32;
     
-    let mut topo_memory = TopologicalMemory::new(d_model, 5, 0.6, 0.8, &device).unwrap();
+    let mut topo_memory = TopologicalMemory::<CpuTensor>::new(d_model, 5, 0.6, 0.8, &device).unwrap();
     let config = BootstrapCfg::default();
     
     // Create some initial U-links
@@ -92,7 +92,7 @@ fn test_stability_formula() {
     let device = Device::cpu();
     let d_model = 32;
     
-    let mut topo_memory = TopologicalMemory::new(d_model, 5, 0.6, 0.8, &device).unwrap();
+    let mut topo_memory = TopologicalMemory::<CpuTensor>::new(d_model, 5, 0.6, 0.8, &device).unwrap();
     
     // Create a link manually
     let link = Link::new(1, 100, 200);
@@ -106,11 +106,11 @@ fn test_stability_formula() {
         phase_sync: 0.8,
     };
     
-    observe_batch(stats, &mut topo_memory).unwrap();
+    observe_batch(stats.clone(), &mut topo_memory).unwrap();
     
     // Run multiple updates to build stability
     for _ in 0..10 {
-        observe_batch(stats, &mut topo_memory).unwrap();
+        observe_batch(stats.clone(), &mut topo_memory).unwrap();
     }
     
     let link_stats = topo_memory.get_link_stats();
@@ -122,7 +122,7 @@ fn test_link_state_transitions() {
     let device = Device::cpu();
     let d_model = 32;
     
-    let mut topo_memory = TopologicalMemory::new(d_model, 5, 0.6, 0.8, &device).unwrap();
+    let mut topo_memory = TopologicalMemory::<CpuTensor>::new(d_model, 5, 0.6, 0.8, &device).unwrap();
     
     // Create initial links
     let bytes = b"Testing link state transitions from U to I to S.";
@@ -141,7 +141,7 @@ fn test_link_state_transitions() {
     
     // Run many updates to trigger state transitions
     for _ in 0..50 {
-        observe_batch(high_quality_stats, &mut topo_memory).unwrap();
+        observe_batch(high_quality_stats.clone(), &mut topo_memory).unwrap();
         
         if let Some(report) = maybe_replay(100, &BootstrapCfg::default(), &mut topo_memory).unwrap() {
             if report.i_links_created > 0 || report.s_links_created > 0 {
@@ -191,7 +191,7 @@ fn test_phase_transitions() {
         ..BootstrapCfg::default()
     };
     
-    let mut topo_memory = TopologicalMemory::new(d_model, 5, 0.6, 0.8, &device).unwrap();
+    let mut topo_memory = TopologicalMemory::<CpuTensor>::new(d_model, 5, 0.6, 0.8, &device).unwrap();
     
     // Phase A: Bootstrap
     let bytes = b"Phase A: Creating initial U-links through bootstrap.";
@@ -217,7 +217,7 @@ fn test_error_handling() {
     let device = Device::cpu();
     let d_model = 32;
     
-    let mut topo_memory = TopologicalMemory::new(d_model, 5, 0.6, 0.8, &device).unwrap();
+    let mut topo_memory = TopologicalMemory::<CpuTensor>::new(d_model, 5, 0.6, 0.8, &device).unwrap();
     
     // Test with empty byte sequence
     let empty_bytes = b"";

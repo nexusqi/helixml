@@ -16,25 +16,40 @@ pub type GeneratedGraphs<T> = Vec<T>;
 pub type GeneratedSequences<T> = Vec<T>;
 
 /// Pre-defined synthetic datasets
-pub struct SyntheticDatasets<T: Tensor> {
+pub struct SyntheticDatasets<T: Tensor + 'static> {
     device: Device,
     dataset_registry: HashMap<String, Box<dyn DatasetGenerator<T>>>,
     _phantom: std::marker::PhantomData<T>,
 }
 
-impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> SyntheticDatasets<T> {
+impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce + 'static> SyntheticDatasets<T> {
     pub fn new(device: &Device) -> Result<Self> {
         let mut dataset_registry = HashMap::new();
         
-        // Register built-in datasets
-        dataset_registry.insert("linear_regression".to_string(), Box::new(LinearRegressionDataset::new(device)?));
-        dataset_registry.insert("classification".to_string(), Box::new(ClassificationDataset::new(device)?));
-        dataset_registry.insert("clustering".to_string(), Box::new(ClusteringDataset::new(device)?));
-        dataset_registry.insert("time_series".to_string(), Box::new(TimeSeriesDataset::new(device)?));
-        dataset_registry.insert("graph".to_string(), Box::new(GraphDataset::new(device)?));
-        dataset_registry.insert("image".to_string(), Box::new(ImageDataset::new(device)?));
-        dataset_registry.insert("text".to_string(), Box::new(TextDataset::new(device)?));
-        dataset_registry.insert("multimodal".to_string(), Box::new(MultimodalDataset::new(device)?));
+        // Register built-in datasets - using explicit type casting to avoid lifetime issues
+        let linear_regression: Box<dyn DatasetGenerator<T>> = Box::new(LinearRegressionDataset::new(device)?);
+        dataset_registry.insert("linear_regression".to_string(), linear_regression);
+        
+        let classification: Box<dyn DatasetGenerator<T>> = Box::new(ClassificationDataset::new(device)?);
+        dataset_registry.insert("classification".to_string(), classification);
+        
+        let clustering: Box<dyn DatasetGenerator<T>> = Box::new(ClusteringDataset::new(device)?);
+        dataset_registry.insert("clustering".to_string(), clustering);
+        
+        let time_series: Box<dyn DatasetGenerator<T>> = Box::new(TimeSeriesDataset::new(device)?);
+        dataset_registry.insert("time_series".to_string(), time_series);
+        
+        let graph: Box<dyn DatasetGenerator<T>> = Box::new(GraphDataset::new(device)?);
+        dataset_registry.insert("graph".to_string(), graph);
+        
+        let image: Box<dyn DatasetGenerator<T>> = Box::new(ImageDataset::new(device)?);
+        dataset_registry.insert("image".to_string(), image);
+        
+        let text: Box<dyn DatasetGenerator<T>> = Box::new(TextDataset::new(device)?);
+        dataset_registry.insert("text".to_string(), text);
+        
+        let multimodal: Box<dyn DatasetGenerator<T>> = Box::new(MultimodalDataset::new(device)?);
+        dataset_registry.insert("multimodal".to_string(), multimodal);
         
         Ok(Self {
             device: device.clone(),
@@ -49,7 +64,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         if let Some(generator) = self.dataset_registry.get_mut(dataset_name) {
             generator.generate(config)
         } else {
-            Err(anyhow::anyhow!("Unknown dataset: {}", dataset_name))
+            Err(tensor_core::TensorError::BackendError { message: format!("Unknown dataset: {}", dataset_name) })
         }
     }
     
@@ -125,13 +140,13 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 size: 1000,
                 complexity: 0.9,
             }),
-            _ => Err(anyhow::anyhow!("Unknown dataset: {}", dataset_name)),
+            _ => Err(tensor_core::TensorError::BackendError { message: format!("Unknown dataset: {}", dataset_name) }),
         }
     }
 }
 
 /// Dataset generator trait
-pub trait DatasetGenerator<T: Tensor> {
+pub trait DatasetGenerator<T: Tensor + 'static> {
     fn generate(&mut self, config: DatasetConfig) -> Result<GeneratedDataset<T>>;
 }
 
@@ -155,8 +170,6 @@ impl Default for DatasetConfig {
             noise_level: 0.1,
             complexity: 0.5,
             seed: None,
-
-        _phantom: std::marker::PhantomData,
         }
     }
 }
@@ -210,7 +223,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
 }
 
-impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> DatasetGenerator<T> for LinearRegressionDataset<T> {
+impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce + 'static> DatasetGenerator<T> for LinearRegressionDataset<T> {
     fn generate(&mut self, config: DatasetConfig) -> Result<GeneratedDataset<T>> {
         let mut features = Vec::new();
         let mut targets = Vec::new();
@@ -259,7 +272,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
 }
 
-impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> DatasetGenerator<T> for ClassificationDataset<T> {
+impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce + 'static> DatasetGenerator<T> for ClassificationDataset<T> {
     fn generate(&mut self, config: DatasetConfig) -> Result<GeneratedDataset<T>> {
         let mut features = Vec::new();
         let mut targets = Vec::new();
@@ -310,7 +323,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
 }
 
-impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> DatasetGenerator<T> for ClusteringDataset<T> {
+impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce + 'static> DatasetGenerator<T> for ClusteringDataset<T> {
     fn generate(&mut self, config: DatasetConfig) -> Result<GeneratedDataset<T>> {
         let mut features = Vec::new();
         let mut targets = Vec::new();
@@ -361,7 +374,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
 }
 
-impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> DatasetGenerator<T> for TimeSeriesDataset<T> {
+impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce + 'static> DatasetGenerator<T> for TimeSeriesDataset<T> {
     fn generate(&mut self, config: DatasetConfig) -> Result<GeneratedDataset<T>> {
         let mut features = Vec::new();
         let mut targets = Vec::new();
@@ -410,7 +423,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
 }
 
-impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> DatasetGenerator<T> for GraphDataset<T> {
+impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce + 'static> DatasetGenerator<T> for GraphDataset<T> {
     fn generate(&mut self, config: DatasetConfig) -> Result<GeneratedDataset<T>> {
         let mut features = Vec::new();
         let mut targets = Vec::new();
@@ -459,7 +472,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
 }
 
-impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> DatasetGenerator<T> for ImageDataset<T> {
+impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce + 'static> DatasetGenerator<T> for ImageDataset<T> {
     fn generate(&mut self, config: DatasetConfig) -> Result<GeneratedDataset<T>> {
         let mut features = Vec::new();
         let mut targets = Vec::new();
@@ -508,7 +521,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
 }
 
-impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> DatasetGenerator<T> for TextDataset<T> {
+impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce + 'static> DatasetGenerator<T> for TextDataset<T> {
     fn generate(&mut self, config: DatasetConfig) -> Result<GeneratedDataset<T>> {
         let mut features = Vec::new();
         let mut targets = Vec::new();
@@ -557,7 +570,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
 }
 
-impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> DatasetGenerator<T> for MultimodalDataset<T> {
+impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce + 'static> DatasetGenerator<T> for MultimodalDataset<T> {
     fn generate(&mut self, config: DatasetConfig) -> Result<GeneratedDataset<T>> {
         let mut features = Vec::new();
         let mut targets = Vec::new();

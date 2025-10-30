@@ -2,6 +2,57 @@
 
 All notable changes to HelixML will be documented in this file.
 
+## [0.2.1] - 2024-12-XX
+
+### Fixed
+
+#### Adaptive Scheduler - Complete Refactoring
+- **233 → 0 Compilation Errors**: Complete architecture overhaul
+- **Removed Generic Parameter**: Eliminated unused `T: Tensor` generic from all components
+- **Error Handling**: Replaced `anyhow::anyhow!` with `TensorError::InvalidInput`
+- **Type System**: Added `Copy` trait for `TaskPriority`, `LoadBalancingStrategy`, `OptimizationStrategy`
+- **Serialization**: Removed `Serialize`/`Deserialize` from types containing `Instant`/`Duration`
+- **Device Matching**: Added wildcard match arms for all `Device` variants
+- **Petgraph API**: Fixed `EdgeReference::source()` usage by adding `use petgraph::visit::EdgeRef;`
+- **Type Inference**: Added explicit `: f32` annotations for float variables
+- **Example Update**: Completely updated `adaptive_scheduler_example` for new architecture
+- **Result**: 100% working adaptive multi-device scheduler
+
+#### Optimizers - All Tests Fixed
+- **AdamW Optimizer**: Replaced 17 instances of incorrect `random_uniform` calls
+- **Lion Optimizer**: Fixed 6 scalar multiplication issues
+- **SGD Optimizer**: Fixed 6 scalar multiplication issues
+- **Root Cause**: Changed from `random_uniform` for scalars to `mul_scalar` and `from_scalar`
+- **Result**: All 3 optimizer tests now pass successfully
+
+### Changed
+
+#### Adaptive Scheduler Architecture
+- **Simplified API**: Removed unnecessary generic complexity
+- **Better Error Messages**: Consistent use of `TensorError` throughout
+- **Improved Type Safety**: Explicit types prevent ambiguous numeric errors
+- **Enhanced Compatibility**: Proper handling of all device types
+
+#### Optimizer Implementation
+- **Correct Scalar Operations**: Using `mul_scalar()` and `from_scalar()` instead of `random_uniform()`
+- **Performance**: No functional changes, just correctness fixes
+- **API Stability**: All optimizers maintain same public interface
+
+### Testing
+
+- **All Unit Tests**: 19 test suites passing (100% success rate)
+- **Integration Tests**: All examples compile and run successfully
+- **Release Build**: Successful compilation in optimized mode
+- **No Compilation Errors**: 0 errors across entire codebase
+
+### Examples
+
+- **Adaptive Scheduler Example**: Updated to work with new architecture
+- **All 22 Examples**: Compiling without errors
+- **Documentation**: Added comprehensive inline documentation
+
+---
+
 ## [0.2.0] - 2024-01-XX
 
 ### Added

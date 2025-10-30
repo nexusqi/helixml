@@ -152,12 +152,12 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         image = image.add(&patterns)?;
         
         // Normalize to [0, 1] range
-        let min_val = image.min(None)?.to_scalar()?;
-        let max_val = image.max(None)?.to_scalar()?;
+        let min_val = image.min_reduce(None, false)?.to_scalar()?;
+        let max_val = image.max_reduce(None, false)?.to_scalar()?;
         let range = max_val - min_val;
         // Subtract scalar and divide by scalar (using tensor scalar operations)
-        image = image.add(&T::from_scalar(-min_val, image.shape().clone(), image.dtype(), image.device())?)?;
-        image = image.mul(&T::from_scalar(1.0 / range, image.shape().clone(), image.dtype(), image.device())?)?;
+        image = image.add_scalar(-min_val)?;
+        image = image.mul_scalar(1.0 / range)?;
         
         Ok(image)
     }
@@ -437,7 +437,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 Ok(noise)
             }
             NoiseType::Uniform => {
-                let noise = T::rand(shape, DType::F32, &self.device)?;
+                let noise = T::random_uniform(shape, 0.0, 1.0, &self.device)?;
                 Ok(noise)
             }
             NoiseType::Pink => {

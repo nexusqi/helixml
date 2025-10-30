@@ -36,8 +36,9 @@ members = [
         "examples/advanced_autograd_example",
            "examples/synthetic_data_example",
            "examples/multimodal_example",
-           "examples/adaptive_scheduler_example",
            "examples/hammer_example",
+           "examples/training_example",
+           "examples/adaptive_scheduler_example",
            "benches"
 , "test_helix_project"]
 

@@ -2,7 +2,7 @@
 //! 
 //! Task queue implementation with priority scheduling and dependency management
 
-use tensor_core::{Tensor, Shape, DType, Device, Result};
+use tensor_core::{Tensor, Shape, DType, Device, Result, TensorError};
 use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
 use std::collections::{HashMap, VecDeque, HashSet};
 use std::sync::{Arc, Mutex, RwLock};
@@ -15,11 +15,11 @@ use super::*;
 
 /// Task queue for managing task execution
 #[derive(Debug)]
-pub struct TaskQueue<T: Tensor> {
+pub struct TaskQueue {
     // Task storage
     pending_tasks: Arc<Mutex<PriorityQueue<TaskId, TaskPriority>>>,
-    running_tasks: Arc<Mutex<HashMap<TaskId, RunningTaskInfo<T>>>>,
-    completed_tasks: Arc<Mutex<HashMap<TaskId, TaskResult<T>>>>,
+    running_tasks: Arc<Mutex<HashMap<TaskId, RunningTaskInfo>>>,
+    completed_tasks: Arc<Mutex<HashMap<TaskId, TaskResult>>>,
     failed_tasks: Arc<Mutex<HashMap<TaskId, String>>>,
     cancelled_tasks: Arc<Mutex<HashSet<TaskId>>>,
     
@@ -38,8 +38,8 @@ pub struct TaskQueue<T: Tensor> {
 
 /// Running task information
 #[derive(Debug, Clone)]
-pub struct RunningTaskInfo<T: Tensor> {
-    pub task: Task<T>,
+pub struct RunningTaskInfo {
+    pub task: Task,
     pub device: Device,
     pub started_at: Instant,
     pub estimated_completion: Instant,
@@ -75,7 +75,7 @@ pub struct QueueStatistics {
     pub queue_utilization: f32,
 }
 
-impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> TaskQueue<T> {
+impl TaskQueue {
     pub fn new(max_queue_size: usize) -> Result<Self> {
         Ok(Self {
             pending_tasks: Arc::new(Mutex::new(PriorityQueue::new())),
@@ -104,12 +104,12 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Enqueue a task
-    pub fn enqueue(&self, task_id: TaskId, task: Task<T>) -> Result<()> {
+    pub fn enqueue(&self, task_id: TaskId, task: Task) -> Result<()> {
         // Check queue size
         {
             let pending = self.pending_tasks.lock().unwrap();
             if pending.len() >= self.max_queue_size {
-                return Err(anyhow::anyhow!("Task queue is full"));
+                return Err(TensorError::InvalidInput { message: "Task queue is full".to_string() });
             }
         }
         
@@ -148,7 +148,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Dequeue a task
-    pub fn dequeue(&self) -> Result<Option<(TaskId, Task<T>)>> {
+    pub fn dequeue(&self) -> Result<Option<(TaskId, Task)>> {
         let mut pending = self.pending_tasks.lock().unwrap();
         let mut metadata_map = self.task_metadata.write().unwrap();
         
@@ -175,7 +175,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             let task = Task {
                 operation: TaskOperation::TensorOperation {
                     operation: TensorOp::Add,
-                    inputs: vec![],
+                    input_shapes: vec![],
                     output_shape: Shape::new(vec![1]),
                 },
                 priority: best_priority,
@@ -202,7 +202,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Get pending tasks
-    pub fn get_pending_tasks(&self) -> Result<Vec<TaskInfo<T>>> {
+    pub fn get_pending_tasks(&self) -> Result<Vec<TaskInfo>> {
         let pending = self.pending_tasks.lock().unwrap();
         let metadata_map = self.task_metadata.read().unwrap();
         let mut pending_tasks = Vec::new();
@@ -213,7 +213,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                     let task = Task {
                         operation: TaskOperation::TensorOperation {
                             operation: TensorOp::Add,
-                            inputs: vec![],
+                            input_shapes: vec![],
                             output_shape: Shape::new(vec![1]),
                         },
                         priority: priority.clone(),
@@ -241,9 +241,9 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     pub fn get_status(&self, task_id: &TaskId) -> Result<TaskStatus> {
         let metadata_map = self.task_metadata.read().unwrap();
         if let Some(metadata) = metadata_map.get(task_id) {
-            Ok(metadata.status)
+            Ok(metadata.status.clone())
         } else {
-            Err(anyhow::anyhow!("Task not found"))
+            Err(TensorError::InvalidInput { message: "Task not found".to_string() })
         }
     }
     
@@ -259,13 +259,13 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Get task result
-    pub fn get_result(&self, task_id: &TaskId) -> Result<Option<TaskResult<T>>> {
+    pub fn get_result(&self, task_id: &TaskId) -> Result<Option<TaskResult>> {
         let completed = self.completed_tasks.lock().unwrap();
         Ok(completed.get(task_id).cloned())
     }
     
     /// Set task result
-    pub fn set_result(&self, task_id: &TaskId, result: TaskResult<T>) -> Result<()> {
+    pub fn set_result(&self, task_id: &TaskId, result: TaskResult) -> Result<()> {
         let mut completed = self.completed_tasks.lock().unwrap();
         completed.insert(task_id.clone(), result);
         
@@ -447,9 +447,9 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
 
 /// Task information
 #[derive(Debug, Clone)]
-pub struct TaskInfo<T: Tensor> {
+pub struct TaskInfo {
     pub task_id: TaskId,
-    pub task: Task<T>,
+    pub task: Task,
     pub priority: TaskPriority,
     pub created_at: Instant,
 }

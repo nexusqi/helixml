@@ -7,7 +7,8 @@
 //! - SSM/Hyena blocks
 
 use helix_ml::*;
-use helix_ml::tensor::{TensorRandom, TensorOps};
+use helix_ml::tensor::TensorRandom;
+use scheduling::{Operation, OperationType};
 use anyhow::Result;
 
 fn main() -> Result<()> {
@@ -45,27 +46,22 @@ fn main() -> Result<()> {
     println!("\n2. Geometric Components:");
     
     // Twistor Pre-encoder
-    let twistor_encoder = TwistorPreEncoder::<CpuTensor>::new(64, 32, 8, &device)?;
-    let encoded = twistor_encoder.encode(&test_sequence)?;
-    println!("  Twistor encoded shape: {:?}", encoded.shape());
-    
-    let decoded = twistor_encoder.decode(&encoded)?;
-    println!("  Twistor decoded shape: {:?}", decoded.shape());
+    let twistor_encoder = TwistorPreEncoder::<CpuTensor>::new(64, 32, &device)?;
+    let twistor_features = twistor_encoder.encode_twistor(&test_sequence)?;
+    println!("  Twistor encoded shape: {:?}", twistor_features.twistor_encoding.shape());
     
     // E8 Symmetry
-    let e8_symmetry = E8SymmetryTying::<CpuTensor>::new(64, &device)?;
-    let e8_transformed = e8_symmetry.apply_symmetry(&test_sequence)?;
-    println!("  E8 transformed shape: {:?}", e8_transformed.shape());
-    println!("  E8 dimension: {}", e8_symmetry.e8_dimension());
+    let e8_symmetry = E8SymmetryTying::<CpuTensor>::new(64, 8, &device)?;
+    let e8_features = e8_symmetry.apply_e8_symmetry(&twistor_features)?;
+    println!("  E8 transformed shape: {:?}", e8_features.symmetry_transformed.shape());
     
     // MERA Hierarchical Access
     let mera_access = MERAHierarchicalAccess::<CpuTensor>::new(64, 4, &device)?;
-    let mera_outputs = mera_access.transform_up(&test_sequence)?;
-    println!("  MERA layers: {}", mera_access.num_layers());
-    println!("  Layer dimensions: {:?}", mera_access.layer_dimensions());
+    let mera_features = mera_access.process_mera(&e8_features)?;
+    println!("  MERA layers: {}", mera_features.layer_outputs.len());
     
-    for (i, output) in mera_outputs.iter().enumerate() {
-        println!("    Layer {}: {:?}", i, output.shape());
+    for (i, output) in mera_features.layer_outputs.iter().enumerate() {
+        println!("    Layer {}: {:?}", i, output.processed_features.shape());
     }
     
     // 3. CDT Scheduling
@@ -138,11 +134,11 @@ fn main() -> Result<()> {
     let hybrid_input = CpuTensor::random_uniform(Shape::new(vec![20, 64]), -1.0, 1.0, &device)?;
     
     // Step 1: Geometric preprocessing
-    let geometric_preprocessed = twistor_encoder.encode(&hybrid_input)?;
-    println!("  After geometric preprocessing: {:?}", geometric_preprocessed.shape());
+    let twistor_features = twistor_encoder.encode_twistor(&hybrid_input)?;
+    println!("  After geometric preprocessing: {:?}", twistor_features.twistor_encoding.shape());
     
     // Step 2: SSM processing
-    let s4_processed = s4_block.forward(&geometric_preprocessed)?;
+    let s4_processed = s4_block.forward(&twistor_features.twistor_encoding)?;
     println!("  After S4 processing: {:?}", s4_processed.shape());
     
     // Step 3: Topological memory integration
@@ -155,9 +151,10 @@ fn main() -> Result<()> {
     let hyena_processed = hyena_block.forward(&s4_processed_64)?;
     println!("  After Hyena processing: {:?}", hyena_processed.shape());
     
-    // Step 5: E8 symmetry application
-    let final_output = e8_symmetry.apply_symmetry(&hyena_processed)?;
-    println!("  Final output: {:?}", final_output.shape());
+    // Step 5: E8 symmetry application (using twistor features)
+    let hybrid_twistor = twistor_encoder.encode_twistor(&hyena_processed)?;
+    let e8_features = e8_symmetry.apply_e8_symmetry(&hybrid_twistor)?;
+    println!("  Final output: {:?}", e8_features.symmetry_transformed.shape());
     
     // 6. Performance Analysis
     println!("\n6. Performance Analysis:");
@@ -167,7 +164,7 @@ fn main() -> Result<()> {
     let traditional_output = traditional_linear.forward(&hybrid_input)?;
     
     println!("  Traditional Linear: {:?}", traditional_output.shape());
-    println!("  Experimental Hybrid: {:?}", final_output.shape());
+    println!("  Experimental Hybrid: {:?}", e8_features.symmetry_transformed.shape());
     
     // Calculate complexity ratios
     let s4_params = s4_block.parameters().len();

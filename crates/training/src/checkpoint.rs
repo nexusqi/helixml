@@ -204,10 +204,11 @@ pub struct CheckpointData {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use backend_cpu::CpuTensor;
     
     #[test]
     fn test_checkpoint_manager_creation() {
-        let manager = CheckpointManager::new().unwrap();
+        let manager: CheckpointManager<CpuTensor> = CheckpointManager::new().unwrap();
         assert_eq!(manager.checkpoint_dir, "checkpoints");
     }
     

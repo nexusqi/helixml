@@ -2,7 +2,7 @@
 //! 
 //! Policy management for adaptive scheduling decisions
 
-use tensor_core::{Tensor, Shape, DType, Device, Result};
+use tensor_core::{Tensor, Shape, DType, Device, Result, TensorError};
 use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
@@ -12,8 +12,7 @@ use anyhow::Context;
 use super::*;
 
 /// Policy manager for scheduling decisions
-#[derive(Debug)]
-pub struct PolicyManager<T: Tensor> {
+pub struct PolicyManager {
     policies: Arc<RwLock<HashMap<PolicyType, Box<dyn SchedulingPolicy + Send + Sync>>>>,
     policy_weights: Arc<RwLock<HashMap<PolicyType, f32>>>,
     policy_history: Arc<RwLock<VecDeque<PolicyDecision>>>,
@@ -23,8 +22,8 @@ pub struct PolicyManager<T: Tensor> {
 
 /// Scheduling policy trait
 pub trait SchedulingPolicy {
-    fn should_schedule(&self, task: &Task<()>, device: &Device) -> Result<bool>;
-    fn get_priority(&self, task: &Task<()>, device: &Device) -> Result<f32>;
+    fn should_schedule(&self, task: &Task, device: &Device) -> Result<bool>;
+    fn get_priority(&self, task: &Task, device: &Device) -> Result<f32>;
     fn get_policy_name(&self) -> &str;
     fn get_parameters(&self) -> HashMap<String, f32>;
 }
@@ -76,7 +75,7 @@ pub struct PolicyMetrics {
     pub convergence_rate: f32,
 }
 
-impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> PolicyManager<T> {
+impl PolicyManager {
     pub fn new() -> Result<Self> {
         let mut manager = Self {
             policies: Arc::new(RwLock::new(HashMap::new())),
@@ -107,7 +106,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Check if a task should be scheduled on a device
-    pub fn should_schedule(&self, task: &Task<T>, device: &Device) -> Result<bool> {
+    pub fn should_schedule(&self, task: &Task, device: &Device) -> Result<bool> {
         let start_time = Instant::now();
         
         // Get all policies
@@ -156,7 +155,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Get task priority based on policies
-    pub fn get_task_priority(&self, task: &Task<T>, device: &Device) -> Result<f32> {
+    pub fn get_task_priority(&self, task: &Task, device: &Device) -> Result<f32> {
         let policies = self.policies.read().unwrap();
         let weights = self.policy_weights.read().unwrap();
         
@@ -238,21 +237,9 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         Ok(())
     }
     
-    /// Convert task to generic type
-    fn convert_task(&self, task: &Task<T>) -> Task<()> {
-        Task {
-            operation: TaskOperation::TensorOperation {
-                operation: TensorOp::Add,
-                inputs: vec![],
-                output_shape: Shape::new(vec![1]),
-            },
-            priority: task.priority,
-            resource_requirements: task.resource_requirements.clone(),
-            device_requirements: task.device_requirements.clone(),
-            timeout: task.timeout,
-            retry_count: task.retry_count,
-            max_retries: task.max_retries,
-        }
+    /// Convert task to simplified type  
+    fn convert_task(&self, task: &Task) -> Task {
+        task.clone()
     }
     
     /// Record policy decision
@@ -302,13 +289,13 @@ impl ResourcePolicy {
 }
 
 impl SchedulingPolicy for ResourcePolicy {
-    fn should_schedule(&self, task: &Task<()>, device: &Device) -> Result<bool> {
+    fn should_schedule(&self, task: &Task, device: &Device) -> Result<bool> {
         // Check if device has sufficient resources
         // This is a simplified check - in practice, you'd check actual device resources
         Ok(true)
     }
     
-    fn get_priority(&self, task: &Task<()>, device: &Device) -> Result<f32> {
+    fn get_priority(&self, task: &Task, device: &Device) -> Result<f32> {
         // Calculate priority based on resource requirements
         let memory_priority = if task.resource_requirements.memory > 1024 * 1024 * 1024 { // 1GB
             0.5
@@ -354,16 +341,16 @@ impl LoadBalancingPolicy {
 }
 
 impl SchedulingPolicy for LoadBalancingPolicy {
-    fn should_schedule(&self, task: &Task<()>, device: &Device) -> Result<bool> {
+    fn should_schedule(&self, task: &Task, device: &Device) -> Result<bool> {
         // Check if device is not overloaded
         // This is a simplified check - in practice, you'd check actual device load
         Ok(true)
     }
     
-    fn get_priority(&self, task: &Task<()>, device: &Device) -> Result<f32> {
+    fn get_priority(&self, task: &Task, device: &Device) -> Result<f32> {
         // Calculate priority based on load balancing
         // Lower load = higher priority
-        0.8 // Placeholder
+        Ok(0.8) // Placeholder
     }
     
     fn get_policy_name(&self) -> &str {
@@ -398,12 +385,12 @@ impl PriorityPolicy {
 }
 
 impl SchedulingPolicy for PriorityPolicy {
-    fn should_schedule(&self, task: &Task<()>, device: &Device) -> Result<bool> {
+    fn should_schedule(&self, task: &Task, device: &Device) -> Result<bool> {
         // Always allow scheduling based on priority
         Ok(true)
     }
     
-    fn get_priority(&self, task: &Task<()>, device: &Device) -> Result<f32> {
+    fn get_priority(&self, task: &Task, device: &Device) -> Result<f32> {
         Ok(self.priority_weights.get(&task.priority).copied().unwrap_or(0.5))
     }
     
@@ -436,16 +423,16 @@ impl EnergyPolicy {
 }
 
 impl SchedulingPolicy for EnergyPolicy {
-    fn should_schedule(&self, task: &Task<()>, device: &Device) -> Result<bool> {
+    fn should_schedule(&self, task: &Task, device: &Device) -> Result<bool> {
         // Check if device is energy efficient
         // This is a simplified check - in practice, you'd check actual energy consumption
         Ok(true)
     }
     
-    fn get_priority(&self, task: &Task<()>, device: &Device) -> Result<f32> {
+    fn get_priority(&self, task: &Task, device: &Device) -> Result<f32> {
         // Calculate priority based on energy efficiency
         // More efficient devices get higher priority
-        0.6 // Placeholder
+        Ok(0.6) // Placeholder
     }
     
     fn get_policy_name(&self) -> &str {
@@ -476,16 +463,16 @@ impl LatencyPolicy {
 }
 
 impl SchedulingPolicy for LatencyPolicy {
-    fn should_schedule(&self, task: &Task<()>, device: &Device) -> Result<bool> {
+    fn should_schedule(&self, task: &Task, device: &Device) -> Result<bool> {
         // Check if device can meet latency requirements
         // This is a simplified check - in practice, you'd check actual device latency
         Ok(true)
     }
     
-    fn get_priority(&self, task: &Task<()>, device: &Device) -> Result<f32> {
+    fn get_priority(&self, task: &Task, device: &Device) -> Result<f32> {
         // Calculate priority based on latency requirements
         // Lower latency devices get higher priority
-        0.7 // Placeholder
+        Ok(0.7) // Placeholder
     }
     
     fn get_policy_name(&self) -> &str {
@@ -516,16 +503,16 @@ impl ThroughputPolicy {
 }
 
 impl SchedulingPolicy for ThroughputPolicy {
-    fn should_schedule(&self, task: &Task<()>, device: &Device) -> Result<bool> {
+    fn should_schedule(&self, task: &Task, device: &Device) -> Result<bool> {
         // Check if device can meet throughput requirements
         // This is a simplified check - in practice, you'd check actual device throughput
         Ok(true)
     }
     
-    fn get_priority(&self, task: &Task<()>, device: &Device) -> Result<f32> {
+    fn get_priority(&self, task: &Task, device: &Device) -> Result<f32> {
         // Calculate priority based on throughput requirements
         // Higher throughput devices get higher priority
-        0.8 // Placeholder
+        Ok(0.8) // Placeholder
     }
     
     fn get_policy_name(&self) -> &str {

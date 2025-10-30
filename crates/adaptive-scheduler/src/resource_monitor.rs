@@ -2,7 +2,7 @@
 //! 
 //! Resource monitoring and management for multi-device scheduling
 
-use tensor_core::{Tensor, Shape, DType, Device, Result};
+use tensor_core::{Tensor, Shape, DType, Device, Result, TensorError};
 use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
@@ -14,7 +14,7 @@ use super::*;
 
 /// Resource monitor for tracking and managing system resources
 #[derive(Debug)]
-pub struct ResourceMonitor<T: Tensor> {
+pub struct ResourceMonitor {
     device_resources: Arc<DashMap<Device, DeviceResources>>,
     resource_allocations: Arc<DashMap<Device, Vec<ResourceAllocation>>>,
     resource_usage_history: Arc<RwLock<HashMap<Device, VecDeque<ResourceUsageSnapshot>>>>,
@@ -76,7 +76,7 @@ pub struct AlertThresholds {
     pub power_threshold: f32,
 }
 
-impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> ResourceMonitor<T> {
+impl ResourceMonitor {
     pub fn new(monitoring_interval: Duration) -> Result<Self> {
         let monitor = Self {
             device_resources: Arc::new(DashMap::new()),
@@ -107,7 +107,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     pub fn start_monitoring(&mut self) -> Result<()> {
         let mut is_monitoring = self.is_monitoring.lock().unwrap();
         if *is_monitoring {
-            return Err(anyhow::anyhow!("Monitoring is already running"));
+            return Err(TensorError::InvalidInput { message: "Monitoring is already running".to_string() });
         }
         
         *is_monitoring = true;
@@ -147,21 +147,21 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     pub fn stop_monitoring(&mut self) -> Result<()> {
         let mut is_monitoring = self.is_monitoring.lock().unwrap();
         if !*is_monitoring {
-            return Err(anyhow::anyhow!("Monitoring is not running"));
+            return Err(TensorError::InvalidInput { message: "Monitoring is not running".to_string() });
         }
         
         *is_monitoring = false;
         
         // Wait for monitoring thread to finish
         if let Some(handle) = self.monitoring_thread.take() {
-            handle.join().map_err(|_| anyhow::anyhow!("Failed to join monitoring thread"))?;
+            handle.join().map_err(|_| TensorError::InvalidInput { message: "Failed to join monitoring thread".to_string() })?;
         }
         
         Ok(())
     }
     
     /// Check if resources can be allocated
-    pub fn can_allocate_resources(&self, device: &Device, task: &Task<T>) -> Result<bool> {
+    pub fn can_allocate_resources(&self, device: &Device, task: &Task) -> Result<bool> {
         let device_resources = self.device_resources.get(device);
         if let Some(resources) = device_resources {
             let available_memory = resources.available_memory;
@@ -179,9 +179,9 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Allocate resources for a task
-    pub fn allocate_resources(&self, device: &Device, task: &Task<T>) -> Result<ResourceAllocation> {
+    pub fn allocate_resources(&self, device: &Device, task: &Task) -> Result<ResourceAllocation> {
         if !self.can_allocate_resources(device, task)? {
-            return Err(anyhow::anyhow!("Insufficient resources"));
+            return Err(TensorError::InvalidInput { message: "Insufficient resources".to_string() });
         }
         
         let allocation = ResourceAllocation {
@@ -212,7 +212,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Free resources for a task
-    pub fn free_resources(&self, device: &Device, task: &Task<T>) -> Result<()> {
+    pub fn free_resources(&self, device: &Device, task: &Task) -> Result<()> {
         // Find and remove allocation
         if let Some(mut allocations) = self.resource_allocations.get_mut(device) {
             allocations.retain(|allocation| {
@@ -335,11 +335,11 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     /// Initialize default devices
     fn initialize_default_devices(&self) -> Result<()> {
         // Add CPU device
-        self.add_device(Device::CPU)?;
+        self.add_device(Device::Cpu)?;
         
         // Add CUDA devices if available
         for i in 0..4 {
-            let cuda_device = Device::CUDA(i);
+            let cuda_device = Device::Cuda(i);
             if self.is_device_available(&cuda_device) {
                 self.add_device(cuda_device)?;
             }
@@ -365,18 +365,19 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     /// Check if device is available
     fn is_device_available(&self, device: &Device) -> bool {
         match device {
-            Device::CPU => true,
-            Device::CUDA(_) => {
+            Device::Cpu => true,
+            Device::Cuda(_) => {
                 // In practice, you'd check if CUDA is available
                 true
             }
+            _ => false, // Other devices not supported yet
         }
     }
     
     /// Get device resource specifications
     fn get_device_resource_specs(&self, device: &Device) -> Result<DeviceResources> {
         match device {
-            Device::CPU => Ok(DeviceResources {
+            Device::Cpu => Ok(DeviceResources {
                 device: device.clone(),
                 total_memory: 32 * 1024 * 1024 * 1024, // 32GB
                 available_memory: 32 * 1024 * 1024 * 1024,
@@ -394,7 +395,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 },
                 last_updated: Instant::now(),
             }),
-            Device::CUDA(_) => Ok(DeviceResources {
+            Device::Cuda(_) => Ok(DeviceResources {
                 device: device.clone(),
                 total_memory: 16 * 1024 * 1024 * 1024, // 16GB
                 available_memory: 16 * 1024 * 1024 * 1024,
@@ -404,6 +405,24 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 available_bandwidth: 1000.0,
                 total_storage: 50 * 1024 * 1024 * 1024, // 50GB
                 available_storage: 50 * 1024 * 1024 * 1024,
+                utilization: ResourceUtilization {
+                    memory_usage: 0.0,
+                    compute_usage: 0.0,
+                    bandwidth_usage: 0.0,
+                    storage_usage: 0.0,
+                },
+                last_updated: Instant::now(),
+            }),
+            _ => Ok(DeviceResources {
+                device: device.clone(),
+                total_memory: 8 * 1024 * 1024 * 1024, // 8GB
+                available_memory: 8 * 1024 * 1024 * 1024,
+                total_compute: 100.0,
+                available_compute: 100.0,
+                total_bandwidth: 100.0,
+                available_bandwidth: 100.0,
+                total_storage: 20 * 1024 * 1024 * 1024, // 20GB
+                available_storage: 20 * 1024 * 1024 * 1024,
                 utilization: ResourceUtilization {
                     memory_usage: 0.0,
                     compute_usage: 0.0,

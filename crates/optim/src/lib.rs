@@ -2,7 +2,7 @@
 //! 
 //! Optimization algorithms for SSM/Hyena architectures.
 
-use tensor_core::{Tensor, Device, Result, TensorError, Shape};
+use tensor_core::{Tensor, Device, Result, TensorError, Shape, DType};
 use tensor_core::tensor::{TensorOps, TensorRandom};
 use std::collections::HashMap;
 
@@ -91,7 +91,7 @@ impl<T: Tensor + TensorOps + TensorRandom> Optimizer<T> for AdamW<T> {
         for (i, (param, grad)) in parameters.iter_mut().zip(gradients.iter()).enumerate() {
             // Apply weight decay
             let grad_with_decay = if self.weight_decay > 0.0 {
-                let decay_term = param.mul(&T::random_uniform(Shape::new(vec![]), self.weight_decay, self.weight_decay, param.device())?)?;
+                let decay_term = param.mul_scalar(self.weight_decay)?;
                 grad.add(&decay_term)?
             } else {
                 (*grad).clone()
@@ -110,24 +110,25 @@ impl<T: Tensor + TensorOps + TensorRandom> Optimizer<T> for AdamW<T> {
             let v = self.v.get_mut(&i).unwrap();
             
             // Update biased first moment estimate
-            let m_new = m.mul(&T::random_uniform(Shape::new(vec![]), self.beta1, self.beta1, m.device())?)?
-                .add(&grad_with_decay.mul(&T::random_uniform(Shape::new(vec![]), 1.0 - self.beta1, 1.0 - self.beta1, grad.device())?)?)?;
+            let m_new = m.mul_scalar(self.beta1)?
+                .add(&grad_with_decay.mul_scalar(1.0 - self.beta1)?)?;
             *m = m_new;
             
             // Update biased second raw moment estimate
-            let v_new = v.mul(&T::random_uniform(Shape::new(vec![]), self.beta2, self.beta2, v.device())?)?
-                .add(&grad_with_decay.mul(&grad_with_decay)?.mul(&T::random_uniform(Shape::new(vec![]), 1.0 - self.beta2, 1.0 - self.beta2, grad.device())?)?)?;
+            let v_new = v.mul_scalar(self.beta2)?
+                .add(&grad_with_decay.mul(&grad_with_decay)?.mul_scalar(1.0 - self.beta2)?)?;
             *v = v_new;
             
             // Compute bias-corrected first moment estimate
-            let m_hat = m.div(&T::random_uniform(Shape::new(vec![]), bias_correction1, bias_correction1, m.device())?)?;
+            let m_hat = m.mul_scalar(1.0 / bias_correction1)?;
             
             // Compute bias-corrected second raw moment estimate
-            let v_hat = v.div(&T::random_uniform(Shape::new(vec![]), bias_correction2, bias_correction2, v.device())?)?;
+            let v_hat = v.mul_scalar(1.0 / bias_correction2)?;
             
             // Update parameters
-            let update = m_hat.div(&v_hat.sqrt()?.add(&T::random_uniform(Shape::new(vec![]), self.eps, self.eps, v.device())?)?)?;
-            let scaled_update = update.mul(&T::random_uniform(Shape::new(vec![]), -self.lr, -self.lr, param.device())?)?;
+            let eps_tensor = T::from_scalar(self.eps, v_hat.shape().clone(), DType::F32, &v_hat.device())?;
+            let update = m_hat.div(&v_hat.sqrt()?.add(&eps_tensor)?)?;
+            let scaled_update = update.mul_scalar(-self.lr)?;
             let new_param = param.add(&scaled_update)?;
             **param = new_param;
         }
@@ -208,7 +209,7 @@ impl<T: Tensor + TensorOps + TensorRandom> Optimizer<T> for Lion<T> {
         for (i, (param, grad)) in parameters.iter_mut().zip(gradients.iter()).enumerate() {
             // Apply weight decay
             let grad_with_decay = if self.weight_decay > 0.0 {
-                let decay_term = param.mul(&T::random_uniform(Shape::new(vec![]), self.weight_decay, self.weight_decay, param.device())?)?;
+                let decay_term = param.mul_scalar(self.weight_decay)?;
                 grad.add(&decay_term)?
             } else {
                 (*grad).clone()
@@ -224,15 +225,15 @@ impl<T: Tensor + TensorOps + TensorRandom> Optimizer<T> for Lion<T> {
             let m = self.m.get_mut(&i).unwrap();
             
             // Update momentum
-            let m_new = m.mul(&T::random_uniform(Shape::new(vec![]), self.beta1, self.beta1, m.device())?)?
-                .add(&grad_with_decay.mul(&T::random_uniform(Shape::new(vec![]), 1.0 - self.beta1, 1.0 - self.beta1, grad.device())?)?)?;
+            let m_new = m.mul_scalar(self.beta1)?
+                .add(&grad_with_decay.mul_scalar(1.0 - self.beta1)?)?;
             *m = m_new;
             
             // Compute update direction using sign
             let update_dir = m.sign()?;
             
             // Update parameters
-            let update = update_dir.mul(&T::random_uniform(Shape::new(vec![]), -self.lr, -self.lr, param.device())?)?;
+            let update = update_dir.mul_scalar(-self.lr)?;
             let new_param = param.add(&update)?;
             **param = new_param;
         }
@@ -308,7 +309,7 @@ impl<T: Tensor + TensorOps + TensorRandom> Optimizer<T> for SGD<T> {
         for (i, (param, grad)) in parameters.iter_mut().zip(gradients.iter()).enumerate() {
             // Apply weight decay
             let grad_with_decay = if self.weight_decay > 0.0 {
-                let decay_term = param.mul(&T::random_uniform(Shape::new(vec![]), self.weight_decay, self.weight_decay, param.device())?)?;
+                let decay_term = param.mul_scalar(self.weight_decay)?;
                 grad.add(&decay_term)?
             } else {
                 (*grad).clone()
@@ -325,15 +326,15 @@ impl<T: Tensor + TensorOps + TensorRandom> Optimizer<T> for SGD<T> {
                 let m = self.m.get_mut(&i).unwrap();
                 
                 // Update momentum
-                let m_new = m.mul(&T::random_uniform(Shape::new(vec![]), self.momentum, self.momentum, m.device())?)?
+                let m_new = m.mul_scalar(self.momentum)?
                     .add(&grad_with_decay)?;
                 *m = m_new.clone();
                 
                 // Use momentum for update
-                m_new.mul(&T::random_uniform(Shape::new(vec![]), -self.lr, -self.lr, param.device())?)?
+                m_new.mul_scalar(-self.lr)?
             } else {
                 // No momentum
-                grad_with_decay.mul(&T::random_uniform(Shape::new(vec![]), -self.lr, -self.lr, param.device())?)?
+                grad_with_decay.mul_scalar(-self.lr)?
             };
             
             // Update parameters

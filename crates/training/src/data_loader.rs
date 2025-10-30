@@ -79,18 +79,27 @@ impl<T: Tensor> DataLoader<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use backend_cpu::CpuTensor;
+    use tensor_core::{Shape, DType, Device, Tensor};
     
     #[test]
     fn test_data_loader_creation() {
-        let loader = DataLoader::new(4, true).unwrap();
+        let loader: DataLoader<CpuTensor> = DataLoader::new(4, true).unwrap();
         assert_eq!(loader.num_workers, 4);
         assert!(loader.pin_memory);
     }
     
     #[test]
     fn test_create_batches() {
-        let loader = DataLoader::new(4, true).unwrap();
-        let data = vec![Tensor::from(1.0), Tensor::from(2.0), Tensor::from(3.0), Tensor::from(4.0)];
+        let loader: DataLoader<CpuTensor> = DataLoader::new(4, true).unwrap();
+        let device = Device::cpu();
+        let shape = Shape::new(vec![1]);
+        let data = vec![
+            CpuTensor::from_slice(&[1.0], shape.clone(), DType::F32, &device).unwrap(),
+            CpuTensor::from_slice(&[2.0], shape.clone(), DType::F32, &device).unwrap(),
+            CpuTensor::from_slice(&[3.0], shape.clone(), DType::F32, &device).unwrap(),
+            CpuTensor::from_slice(&[4.0], shape.clone(), DType::F32, &device).unwrap(),
+        ];
         let batches = loader.create_batches(&data, 2).unwrap();
         assert_eq!(batches.len(), 2);
         assert_eq!(batches[0].len(), 2);

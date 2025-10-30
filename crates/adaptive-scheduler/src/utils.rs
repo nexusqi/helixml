@@ -2,7 +2,7 @@
 //! 
 //! Utility functions for adaptive scheduling operations
 
-use tensor_core::{Tensor, Shape, DType, Device, Result};
+use tensor_core::{Tensor, Shape, DType, Device, Result, TensorError};
 use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
@@ -28,8 +28,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Calculate task priority score
-    pub fn calculate_priority_score(&self, task: &Task<T>) -> Result<f32> {
-        let mut score = 0.0;
+    pub fn calculate_priority_score(&self, task: &Task) -> Result<f32> {
+        let mut score: f32 = 0.0;
         
         // Priority weight
         match task.priority {
@@ -40,13 +40,13 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         }
         
         // Resource requirements weight
-        let memory_weight = if task.resource_requirements.memory > 1024 * 1024 * 1024 { // 1GB
+        let memory_weight: f32 = if task.resource_requirements.memory > 1024 * 1024 * 1024 { // 1GB
             0.3
         } else {
             0.7
         };
         
-        let compute_weight = if task.resource_requirements.compute > 10.0 {
+        let compute_weight: f32 = if task.resource_requirements.compute > 10.0 {
             0.3
         } else {
             0.7
@@ -55,7 +55,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         score += (memory_weight + compute_weight) / 2.0 * 0.3;
         
         // Timeout weight
-        let timeout_weight = if task.timeout < Duration::from_secs(60) {
+        let timeout_weight: f32 = if task.timeout < Duration::from_secs(60) {
             0.8
         } else {
             0.4
@@ -67,8 +67,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Calculate device suitability score
-    pub fn calculate_device_suitability(&self, device: &Device, task: &Task<T>) -> Result<f32> {
-        let mut score = 0.0;
+    pub fn calculate_device_suitability(&self, device: &Device, task: &Task) -> Result<f32> {
+        let mut score: f32 = 0.0;
         
         // Device type compatibility
         let compatibility_score = if task.device_requirements.device_types.contains(device) {
@@ -90,8 +90,9 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         
         // Performance characteristics
         let performance_score = match device {
-            Device::CPU => 0.6,
-            Device::CUDA(_) => 0.9,
+            Device::Cpu => 0.6,
+            Device::Cuda(_) => 0.9,
+            _ => 0.5, // Default for other devices
         };
         
         score += performance_score * 0.3;
@@ -121,10 +122,11 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Calculate energy efficiency score
-    pub fn calculate_energy_efficiency(&self, device: &Device, task: &Task<T>) -> Result<f32> {
+    pub fn calculate_energy_efficiency(&self, device: &Device, task: &Task) -> Result<f32> {
         let base_efficiency = match device {
-            Device::CPU => 0.8,
-            Device::CUDA(_) => 0.6,
+            Device::Cpu => 0.8,
+            Device::Cuda(_) => 0.6,
+            _ => 0.7, // Default for other devices
         };
         
         // Adjust based on task requirements
@@ -140,15 +142,16 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             1.0
         };
         
-        let efficiency = base_efficiency * memory_factor * compute_factor;
+        let efficiency: f32 = base_efficiency * memory_factor * compute_factor;
         Ok(efficiency.min(1.0))
     }
     
     /// Calculate latency score
-    pub fn calculate_latency_score(&self, device: &Device, task: &Task<T>) -> Result<f32> {
+    pub fn calculate_latency_score(&self, device: &Device, task: &Task) -> Result<f32> {
         let base_latency = match device {
-            Device::CPU => Duration::from_millis(100),
-            Device::CUDA(_) => Duration::from_millis(50),
+            Device::Cpu => Duration::from_millis(100),
+            Device::Cuda(_) => Duration::from_millis(50),
+            _ => Duration::from_millis(75), // Default for other devices
         };
         
         // Adjust based on task complexity
@@ -171,10 +174,11 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Calculate throughput score
-    pub fn calculate_throughput_score(&self, device: &Device, task: &Task<T>) -> Result<f32> {
+    pub fn calculate_throughput_score(&self, device: &Device, task: &Task) -> Result<f32> {
         let base_throughput = match device {
-            Device::CPU => 100.0,
-            Device::CUDA(_) => 1000.0,
+            Device::Cpu => 100.0,
+            Device::Cuda(_) => 1000.0,
+            _ => 500.0, // Default for other devices
         };
         
         // Adjust based on task requirements
@@ -205,7 +209,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     /// Calculate overall scheduling score
     pub fn calculate_scheduling_score(
         &self,
-        task: &Task<T>,
+        task: &Task,
         device: &Device,
         current_loads: &HashMap<Device, f32>,
     ) -> Result<f32> {
@@ -228,7 +232,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     /// Generate scheduling recommendations
     pub fn generate_recommendations(
         &self,
-        tasks: &[Task<T>],
+        tasks: &[Task],
         devices: &[Device],
         current_loads: &HashMap<Device, f32>,
     ) -> Result<Vec<SchedulingRecommendation>> {
@@ -287,7 +291,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     /// Optimize task assignment
     pub fn optimize_task_assignment(
         &self,
-        tasks: &[Task<T>],
+        tasks: &[Task],
         devices: &[Device],
         current_loads: &HashMap<Device, f32>,
     ) -> Result<HashMap<TaskId, Device>> {
@@ -325,7 +329,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     /// Calculate system efficiency
     pub fn calculate_system_efficiency(
         &self,
-        tasks: &[Task<T>],
+        tasks: &[Task],
         devices: &[Device],
         current_loads: &HashMap<Device, f32>,
     ) -> Result<f32> {
@@ -348,10 +352,11 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Predict task execution time
-    pub fn predict_execution_time(&self, task: &Task<T>, device: &Device) -> Result<Duration> {
+    pub fn predict_execution_time(&self, task: &Task, device: &Device) -> Result<Duration> {
         let base_time = match device {
-            Device::CPU => Duration::from_millis(100),
-            Device::CUDA(_) => Duration::from_millis(50),
+            Device::Cpu => Duration::from_millis(100),
+            Device::Cuda(_) => Duration::from_millis(50),
+            _ => Duration::from_millis(75), // Default for other devices
         };
         
         // Adjust based on task complexity
@@ -374,7 +379,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     /// Calculate resource utilization
     pub fn calculate_resource_utilization(
         &self,
-        tasks: &[Task<T>],
+        tasks: &[Task],
         devices: &[Device],
     ) -> Result<ResourceUtilization> {
         let total_memory_required: usize = tasks.iter()
@@ -426,7 +431,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     /// Generate performance report
     pub fn generate_performance_report(
         &self,
-        tasks: &[Task<T>],
+        tasks: &[Task],
         devices: &[Device],
         current_loads: &HashMap<Device, f32>,
     ) -> Result<PerformanceReport> {
@@ -502,7 +507,7 @@ impl ConfigUtils {
         default_configs.insert("device_config".to_string(), serde_json::json!({
             "cpu_devices": 1,
             "cuda_devices": 4,
-            "memory_limit": 32000000000,
+            "memory_limit": 32000000000i64,
             "compute_limit": 100.0
         }));
         
@@ -525,17 +530,20 @@ impl ConfigUtils {
     
     /// Save configuration to file
     pub fn save_config(&self, config: &serde_json::Value, filename: &str) -> Result<()> {
-        let file = std::fs::File::create(filename)?;
+        let file = std::fs::File::create(filename)
+            .map_err(|e| TensorError::SerializationError { message: e.to_string() })?;
         let mut writer = std::io::BufWriter::new(file);
-        serde_json::to_writer_pretty(&mut writer, config)?;
-        writer.flush()?;
+        serde_json::to_writer_pretty(&mut writer, config)
+            .map_err(|e| TensorError::SerializationError { message: e.to_string() })?;
         Ok(())
     }
     
     /// Load configuration from file
     pub fn load_config(&self, filename: &str) -> Result<serde_json::Value> {
-        let file = std::fs::File::open(filename)?;
-        let config: serde_json::Value = serde_json::from_reader(file)?;
+        let file = std::fs::File::open(filename)
+            .map_err(|e| TensorError::SerializationError { message: e.to_string() })?;
+        let config: serde_json::Value = serde_json::from_reader(file)
+            .map_err(|e| TensorError::SerializationError { message: e.to_string() })?;
         Ok(config)
     }
 }

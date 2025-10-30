@@ -288,7 +288,8 @@ pub struct VortexStats {
 mod tests {
     use super::*;
     use backend_cpu::CpuTensor;
-    use tensor_core::{Shape, DType, Device};
+    use tensor_core::{Shape, DType, Device, Tensor};
+    use tensor_core::tensor::TensorRandom;
     
     #[test]
     fn test_vortex_basic() {
@@ -305,7 +306,7 @@ mod tests {
     fn test_gradient_history() {
         let mut history = GradientHistory::<CpuTensor>::new(5);
         
-        for i in 0..10 {
+        for _i in 0..10 {
             let grad = CpuTensor::ones(Shape::new(vec![10]), DType::F32, &Device::cpu()).unwrap();
             history.push(grad);
         }

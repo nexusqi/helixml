@@ -1,0 +1,13 @@
+[package]
+name = "training_example"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+helix_ml = { path = "../../lib" }
+backend-cpu = { path = "../../crates/backend-cpu" }
+tensor-core = { path = "../../crates/tensor-core" }
+nn = { path = "../../crates/nn" }
+optim = { path = "../../crates/optim" }
+training = { path = "../../crates/training" }
+anyhow = "1.0"

@@ -2,7 +2,7 @@
 //! 
 //! Comprehensive metrics collection and analysis for adaptive scheduling
 
-use tensor_core::{Tensor, Shape, DType, Device, Result};
+use tensor_core::{Tensor, Shape, DType, Device, Result, TensorError};
 use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
@@ -14,7 +14,7 @@ use super::*;
 
 /// Metrics collector for adaptive scheduling
 #[derive(Debug)]
-pub struct MetricsCollector<T: Tensor> {
+pub struct MetricsCollector {
     scheduler_metrics: Arc<RwLock<SchedulerMetrics>>,
     device_metrics: Arc<RwLock<HashMap<Device, DeviceMetrics>>>,
     task_metrics: Arc<RwLock<HashMap<TaskId, TaskMetrics>>>,
@@ -27,7 +27,7 @@ pub struct MetricsCollector<T: Tensor> {
 }
 
 /// Device metrics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct DeviceMetrics {
     pub device: Device,
     pub utilization: f32,
@@ -46,7 +46,7 @@ pub struct DeviceMetrics {
 }
 
 /// Task metrics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct TaskMetrics {
     pub task_id: TaskId,
     pub priority: TaskPriority,
@@ -74,7 +74,7 @@ pub struct ResourceUsage {
 }
 
 /// Performance snapshot
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct PerformanceSnapshot {
     pub timestamp: Instant,
     pub overall_throughput: f32,
@@ -114,7 +114,7 @@ pub struct MetricsAggregator {
 }
 
 /// Metrics event
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub enum MetricsEvent {
     TaskCreated { task_id: TaskId, priority: TaskPriority, timestamp: Instant },
     TaskStarted { task_id: TaskId, device: Device, timestamp: Instant },
@@ -138,7 +138,7 @@ pub enum AlertType {
     LoadImbalance,
 }
 
-impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> MetricsCollector<T> {
+impl MetricsCollector {
     pub fn new() -> Result<Self> {
         Ok(Self {
             scheduler_metrics: Arc::new(RwLock::new(SchedulerMetrics {
@@ -485,7 +485,7 @@ pub struct DeviceSummary {
 }
 
 /// Performance report
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct PerformanceReport {
     pub overall_metrics: SchedulerMetrics,
     pub device_summaries: Vec<DeviceSummary>,
@@ -495,7 +495,7 @@ pub struct PerformanceReport {
 }
 
 /// Alert
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Alert {
     pub alert_type: AlertType,
     pub message: String,

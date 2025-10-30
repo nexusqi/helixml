@@ -6,8 +6,8 @@
 use synthetic_data::*;
 use tensor_core::{Tensor, Shape, DType, Device, Result};
 use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
-use anyhow::Context;
-use tracing::{info, error, warn};
+use backend_cpu::CpuTensor;
+use tracing::info;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -17,12 +17,12 @@ async fn main() -> Result<()> {
     info!("🎲 Starting Synthetic Data Generation Example");
     
     // Initialize device
-    let device = Device::CPU;
+    let device = Device::Cpu;
     info!("📱 Using device: {:?}", device);
     
     // Create synthetic data system
     let config = SyntheticDataConfig::default();
-    let mut synthetic_system = SyntheticDataSystem::new(config, &device)?;
+    let mut synthetic_system = SyntheticDataSystem::<CpuTensor>::new(config, &device)?;
     info!("✅ Synthetic data system initialized");
     
     // Generate different types of synthetic data
@@ -171,12 +171,12 @@ async fn run_multimodal_generation_example<T: Tensor + TensorOps + TensorRandom 
     Ok(())
 }
 
-async fn run_benchmarking_example<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce>(
+async fn run_benchmarking_example(
     device: &Device
 ) -> Result<()> {
     info!("🏁 Running performance benchmarks...");
     
-    let mut benchmark_suite = BenchmarkSuite::new(device)?;
+    let mut benchmark_suite = BenchmarkSuite::<CpuTensor>::new(device)?;
     let benchmark_results = benchmark_suite.run_all_benchmarks()?;
     
     info!("⏱️ Total benchmark time: {:?}", benchmark_results.total_time);
@@ -190,12 +190,12 @@ async fn run_benchmarking_example<T: Tensor + TensorOps + TensorRandom + TensorB
     Ok(())
 }
 
-async fn run_dataset_generation_example<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce>(
+async fn run_dataset_generation_example(
     device: &Device
 ) -> Result<()> {
     info!("📚 Generating pre-defined datasets...");
     
-    let mut datasets = SyntheticDatasets::new(device)?;
+    let mut datasets = SyntheticDatasets::<CpuTensor>::new(device)?;
     let available_datasets = datasets.list_datasets();
     info!("📋 Available datasets: {:?}", available_datasets);
     
@@ -225,7 +225,7 @@ mod example_utils {
     /// Display data statistics
     pub fn display_statistics<T: Tensor>(data: &[T], name: &str) -> Result<()> {
         if data.is_empty() {
-            warn!("No data to display statistics for {}", name);
+            info!("No data to display statistics for {}", name);
             return Ok(());
         }
         

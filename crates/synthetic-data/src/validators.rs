@@ -136,9 +136,10 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         let autocorr_test = self.test_autocorrelation(sequence)?;
         tests.push(autocorr_test);
         
+        let overall_score = self.compute_individual_validation_score(&tests);
         Ok(IndividualValidation {
             tests,
-            overall_score: self.compute_individual_validation_score(&tests),
+            overall_score,
         })
     }
     
@@ -157,9 +158,10 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         let texture_test = self.test_texture_properties(image)?;
         tests.push(texture_test);
         
+        let overall_score = self.compute_individual_validation_score(&tests);
         Ok(IndividualValidation {
             tests,
-            overall_score: self.compute_individual_validation_score(&tests),
+            overall_score,
         })
     }
     
@@ -178,9 +180,10 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         let path_length_test = self.test_path_length(graph)?;
         tests.push(path_length_test);
         
+        let overall_score = self.compute_individual_validation_score(&tests);
         Ok(IndividualValidation {
             tests,
-            overall_score: self.compute_individual_validation_score(&tests),
+            overall_score,
         })
     }
     
@@ -199,9 +202,10 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         let stationarity_test = self.test_stationarity(series)?;
         tests.push(stationarity_test);
         
+        let overall_score = self.compute_individual_validation_score(&tests);
         Ok(IndividualValidation {
             tests,
-            overall_score: self.compute_individual_validation_score(&tests),
+            overall_score,
         })
     }
     
@@ -220,9 +224,10 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         let language_test = self.test_language_model(text)?;
         tests.push(language_test);
         
+        let overall_score = self.compute_individual_validation_score(&tests);
         Ok(IndividualValidation {
             tests,
-            overall_score: self.compute_individual_validation_score(&tests),
+            overall_score,
         })
     }
     

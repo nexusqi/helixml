@@ -2,34 +2,36 @@
 //! 
 //! Core scheduling algorithms and task management for the adaptive scheduler
 
-use tensor_core::{Tensor, Shape, DType, Device, Result};
+use tensor_core::{Tensor, Shape, DType, Device, Result, TensorError};
 use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
 use std::collections::{HashMap, VecDeque, HashSet};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 use anyhow::Context;
-use petgraph::{Graph, Directed, NodeIndex};
+use petgraph::{Graph, Directed};
+use petgraph::graph::NodeIndex;
 use petgraph::algo::toposort;
+use petgraph::visit::EdgeRef;
 use priority_queue::PriorityQueue;
 
 use super::*;
 
 /// Core scheduler implementation
 #[derive(Debug)]
-pub struct CoreScheduler<T: Tensor> {
-    task_graph: Arc<RwLock<Graph<TaskNode<T>, TaskDependency>>>,
+pub struct CoreScheduler {
+    task_graph: Arc<RwLock<Graph<TaskNode, TaskDependency>>>,
     execution_queue: Arc<Mutex<PriorityQueue<TaskId, TaskPriority>>>,
-    running_tasks: Arc<Mutex<HashMap<TaskId, RunningTaskInfo<T>>>>,
-    completed_tasks: Arc<Mutex<HashMap<TaskId, TaskResult<T>>>>,
+    running_tasks: Arc<Mutex<HashMap<TaskId, RunningTaskInfo>>>,
+    completed_tasks: Arc<Mutex<HashMap<TaskId, TaskResult>>>,
     failed_tasks: Arc<Mutex<HashMap<TaskId, String>>>,
     scheduler_state: Arc<Mutex<SchedulerState>>,
 }
 
 /// Task node in the execution graph
 #[derive(Debug, Clone)]
-pub struct TaskNode<T: Tensor> {
+pub struct TaskNode {
     pub task_id: TaskId,
-    pub task: Task<T>,
+    pub task: Task,
     pub dependencies: Vec<TaskId>,
     pub dependents: Vec<TaskId>,
     pub status: TaskStatus,
@@ -57,17 +59,17 @@ pub enum DependencyType {
 
 /// Running task information
 #[derive(Debug, Clone)]
-pub struct RunningTaskInfo<T: Tensor> {
-    pub task: Task<T>,
+pub struct RunningTaskInfo {
+    pub task: Task,
     pub device: Device,
     pub started_at: Instant,
     pub estimated_completion: Instant,
-    pub resource_allocation: ResourceAllocation,
+    pub resource_allocation: SchedulerResourceAllocation,
 }
 
-/// Resource allocation
+/// Resource allocation for scheduler
 #[derive(Debug, Clone)]
-pub struct ResourceAllocation {
+pub struct SchedulerResourceAllocation {
     pub memory: usize,
     pub compute: f32,
     pub bandwidth: f32,
@@ -87,7 +89,7 @@ pub struct SchedulerState {
     pub optimization_count: usize,
 }
 
-impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> CoreScheduler<T> {
+impl CoreScheduler {
     pub fn new() -> Result<Self> {
         let task_graph = Arc::new(RwLock::new(Graph::new()));
         let execution_queue = Arc::new(Mutex::new(PriorityQueue::new()));
@@ -116,7 +118,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Add a task to the scheduler
-    pub fn add_task(&self, task: Task<T>) -> Result<TaskId> {
+    pub fn add_task(&self, task: Task) -> Result<TaskId> {
         let task_id = TaskId::new();
         let task_node = TaskNode {
             task_id: task_id.clone(),
@@ -153,18 +155,19 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Add a task with dependencies
-    pub fn add_task_with_dependencies(&self, task: Task<T>, dependencies: Vec<TaskId>) -> Result<TaskId> {
+    pub fn add_task_with_dependencies(&self, task: Task, dependencies: Vec<TaskId>) -> Result<TaskId> {
         let task_id = self.add_task(task)?;
         
         // Add dependencies to the graph
         {
             let mut graph = self.task_graph.write().unwrap();
             // Find the node for this task
-            let task_node_index = self.find_node_index(&graph, &task_id)?;
+            let task_node_index = self.find_node_index(&graph, &task_id)?
+                .ok_or_else(|| TensorError::InvalidInput { message: "Task node not found".to_string() })?;
             
             // Add dependency edges
             for dep_id in dependencies {
-                if let Some(dep_node_index) = self.find_node_index(&graph, &dep_id) {
+                if let Ok(Some(dep_node_index)) = self.find_node_index(&graph, &dep_id) {
                     graph.add_edge(dep_node_index, task_node_index, TaskDependency {
                         dependency_type: DependencyType::DataDependency,
                         weight: 1.0,
@@ -178,7 +181,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Get next task to execute
-    pub fn get_next_task(&self) -> Result<Option<(TaskId, Task<T>)>> {
+    pub fn get_next_task(&self) -> Result<Option<(TaskId, Task)>> {
         let mut queue = self.execution_queue.lock().unwrap();
         let graph = self.task_graph.read().unwrap();
         
@@ -215,11 +218,11 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Mark task as running
-    pub fn mark_task_running(&self, task_id: &TaskId, device: Device, resource_allocation: ResourceAllocation) -> Result<()> {
+    pub fn mark_task_running(&self, task_id: &TaskId, device: Device, resource_allocation: SchedulerResourceAllocation) -> Result<()> {
         // Update task status in graph
         {
             let mut graph = self.task_graph.write().unwrap();
-            if let Some(node_index) = self.find_node_index(&graph, task_id) {
+            if let Ok(Some(node_index)) = self.find_node_index(&graph, task_id) {
                 if let Some(node) = graph.node_weight_mut(node_index) {
                     node.status = TaskStatus::Running;
                     node.started_at = Some(Instant::now());
@@ -253,11 +256,11 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Mark task as completed
-    pub fn mark_task_completed(&self, task_id: &TaskId, result: TaskResult<T>) -> Result<()> {
+    pub fn mark_task_completed(&self, task_id: &TaskId, result: TaskResult) -> Result<()> {
         // Update task status in graph
         {
             let mut graph = self.task_graph.write().unwrap();
-            if let Some(node_index) = self.find_node_index(&graph, task_id) {
+            if let Ok(Some(node_index)) = self.find_node_index(&graph, task_id) {
                 if let Some(node) = graph.node_weight_mut(node_index) {
                     node.status = TaskStatus::Completed;
                     node.completed_at = Some(Instant::now());
@@ -292,7 +295,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         // Update task status in graph
         {
             let mut graph = self.task_graph.write().unwrap();
-            if let Some(node_index) = self.find_node_index(&graph, task_id) {
+            if let Ok(Some(node_index)) = self.find_node_index(&graph, task_id) {
                 if let Some(node) = graph.node_weight_mut(node_index) {
                     node.status = TaskStatus::Failed;
                     node.completed_at = Some(Instant::now());
@@ -328,12 +331,12 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         if let Some(task_node) = self.get_task_node(&graph, task_id)? {
             Ok(task_node.status)
         } else {
-            Err(anyhow::anyhow!("Task not found"))
+            Err(TensorError::InvalidInput { message: "Task not found".to_string() })
         }
     }
     
     /// Get task result
-    pub fn get_task_result(&self, task_id: &TaskId) -> Result<Option<TaskResult<T>>> {
+    pub fn get_task_result(&self, task_id: &TaskId) -> Result<Option<TaskResult>> {
         let completed_tasks = self.completed_tasks.lock().unwrap();
         Ok(completed_tasks.get(task_id).cloned())
     }
@@ -345,13 +348,13 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Get running tasks
-    pub fn get_running_tasks(&self) -> Result<HashMap<TaskId, RunningTaskInfo<T>>> {
+    pub fn get_running_tasks(&self) -> Result<HashMap<TaskId, RunningTaskInfo>> {
         let running_tasks = self.running_tasks.lock().unwrap();
         Ok(running_tasks.clone())
     }
     
     /// Find ready tasks (dependencies satisfied)
-    fn find_ready_tasks(&self, graph: &Graph<TaskNode<T>, TaskDependency>) -> Result<Vec<TaskId>> {
+    fn find_ready_tasks(&self, graph: &Graph<TaskNode, TaskDependency>) -> Result<Vec<TaskId>> {
         let mut ready_tasks = Vec::new();
         
         for node_index in graph.node_indices() {
@@ -360,7 +363,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                     // Check if all dependencies are completed
                     let mut all_deps_completed = true;
                     for dep_edge in graph.edges_directed(node_index, petgraph::Direction::Incoming) {
-                        if let Some(dep_node) = graph.node_weight(dep_edge.source()) {
+                        let source = dep_edge.source();
+                        if let Some(dep_node) = graph.node_weight(source) {
                             if dep_node.status != TaskStatus::Completed {
                                 all_deps_completed = false;
                                 break;
@@ -379,7 +383,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Find node index for a task ID
-    fn find_node_index(&self, graph: &Graph<TaskNode<T>, TaskDependency>, task_id: &TaskId) -> Result<Option<NodeIndex>> {
+    fn find_node_index(&self, graph: &Graph<TaskNode, TaskDependency>, task_id: &TaskId) -> Result<Option<NodeIndex>> {
         for node_index in graph.node_indices() {
             if let Some(node) = graph.node_weight(node_index) {
                 if node.task_id == *task_id {
@@ -391,7 +395,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Get task node by ID
-    fn get_task_node(&self, graph: &Graph<TaskNode<T>, TaskDependency>, task_id: &TaskId) -> Result<Option<TaskNode<T>>> {
+    fn get_task_node(&self, graph: &Graph<TaskNode, TaskDependency>, task_id: &TaskId) -> Result<Option<TaskNode>> {
         if let Some(node_index) = self.find_node_index(graph, task_id)? {
             if let Some(node) = graph.node_weight(node_index) {
                 return Ok(Some(node.clone()));
@@ -414,19 +418,21 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         // Suggest optimizations
         let optimizations = self.suggest_optimizations(&graph, &critical_path, &bottlenecks)?;
         
+        let estimated_improvement = self.estimate_improvement(&optimizations)?;
+        
         Ok(OptimizationResult {
             critical_path,
             bottlenecks,
             optimizations,
-            estimated_improvement: self.estimate_improvement(&optimizations)?,
+            estimated_improvement,
         })
     }
     
     /// Analyze critical path
-    fn analyze_critical_path(&self, graph: &Graph<TaskNode<T>, TaskDependency>) -> Result<Vec<TaskId>> {
+    fn analyze_critical_path(&self, graph: &Graph<TaskNode, TaskDependency>) -> Result<Vec<TaskId>> {
         // Find topological order
         let topo_order = toposort(&graph, None)
-            .map_err(|_| anyhow::anyhow!("Graph contains cycles"))?;
+            .map_err(|_| TensorError::InvalidInput { message: "Graph contains cycles".to_string() })?;
         
         // Calculate longest path
         let mut distances = HashMap::new();
@@ -437,14 +443,15 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             let mut predecessor = None;
             
             for edge in graph.edges_directed(node_index, petgraph::Direction::Incoming) {
-                if let Some(pred_node) = graph.node_weight(edge.source()) {
-                    let pred_distance = distances.get(&edge.source()).unwrap_or(&0.0);
+                let source = edge.source();
+                if let Some(pred_node) = graph.node_weight(source) {
+                    let pred_distance = distances.get(&source).unwrap_or(&0.0);
                     let edge_weight = edge.weight().weight;
                     let total_distance = pred_distance + edge_weight;
                     
                     if total_distance > max_distance {
                         max_distance = total_distance;
-                        predecessor = Some(edge.source());
+                        predecessor = Some(source);
                     }
                 }
             }
@@ -470,7 +477,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Identify bottlenecks
-    fn identify_bottlenecks(&self, graph: &Graph<TaskNode<T>, TaskDependency>) -> Result<Vec<Bottleneck>> {
+    fn identify_bottlenecks(&self, graph: &Graph<TaskNode, TaskDependency>) -> Result<Vec<Bottleneck>> {
         let mut bottlenecks = Vec::new();
         
         for node_index in graph.node_indices() {
@@ -504,7 +511,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     /// Suggest optimizations
     fn suggest_optimizations(
         &self,
-        graph: &Graph<TaskNode<T>, TaskDependency>,
+        graph: &Graph<TaskNode, TaskDependency>,
         critical_path: &[TaskId],
         bottlenecks: &[Bottleneck],
     ) -> Result<Vec<OptimizationSuggestion>> {
@@ -516,7 +523,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 let incoming_edges = graph.edges_directed(node_index, petgraph::Direction::Incoming).count();
                 if incoming_edges == 0 && node.status == TaskStatus::Pending {
                     suggestions.push(OptimizationSuggestion {
-                        suggestion_type: OptimizationType::Parallelization,
+                        suggestion_type: SchedulerOptimizationType::Parallelization,
                         task_id: Some(node.task_id.clone()),
                         description: "Task can be parallelized".to_string(),
                         estimated_improvement: 0.3,
@@ -529,7 +536,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         for bottleneck in bottlenecks {
             if bottleneck.bottleneck_type == BottleneckType::HighMemoryUsage {
                 suggestions.push(OptimizationSuggestion {
-                    suggestion_type: OptimizationType::ResourceOptimization,
+                    suggestion_type: SchedulerOptimizationType::ResourceOptimization,
                     task_id: Some(bottleneck.task_id.clone()),
                     description: "Optimize memory usage".to_string(),
                     estimated_improvement: 0.2,
@@ -569,7 +576,7 @@ pub struct Bottleneck {
 }
 
 /// Bottleneck types
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BottleneckType {
     HighMemoryUsage,
     HighComputeUsage,
@@ -581,7 +588,7 @@ pub enum BottleneckType {
 /// Optimization suggestion
 #[derive(Debug, Clone)]
 pub struct OptimizationSuggestion {
-    pub suggestion_type: OptimizationType,
+    pub suggestion_type: SchedulerOptimizationType,
     pub task_id: Option<TaskId>,
     pub description: String,
     pub estimated_improvement: f32,
@@ -589,7 +596,7 @@ pub struct OptimizationSuggestion {
 
 /// Optimization types
 #[derive(Debug, Clone)]
-pub enum OptimizationType {
+pub enum SchedulerOptimizationType {
     Parallelization,
     ResourceOptimization,
     DependencyOptimization,

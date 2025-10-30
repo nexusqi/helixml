@@ -31,7 +31,7 @@ pub struct Trainer<M: Module<CpuTensor> + CheckpointableModule<CpuTensor>> {
     /// Data loader
     data_loader: Arc<DataLoader<CpuTensor>>,
     /// Validation manager
-    validation_manager: Arc<ValidationManager<CpuTensor>>,
+    validation_manager: Arc<ValidationManager>,
     /// Training configuration
     config: TrainingConfig,
     /// Training state

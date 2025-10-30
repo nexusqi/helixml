@@ -87,19 +87,40 @@ fn main() -> Result<()> {
     // Test meaning induction bootstrap
     println!("\nTesting Meaning Induction Bootstrap...");
     let bootstrap_cfg = BootstrapCfg {
+        enabled: true,
+        window: 10,
+        pmi_threshold: 0.1,
+        replay_period: 100,
         theta_low: 0.1,
         theta_high: 0.5,
         decay: 0.01,
-        replay_boost: 0.1,
-        max_u_links: 1000,
+        replay_boost: true,
+        u_pool_size: 1000,
     };
     
-    let batch_stats = bootstrap_span(&sequence, &bootstrap_cfg, &device)?;
-    println!("Bootstrap stats: U={}, I={}, S={}, avg_stability={:.3}", 
-             batch_stats.u_links, batch_stats.i_links, batch_stats.s_links, batch_stats.avg_stability);
+    let bytes = generate_test_bytes(100);
+    let u_links_created = bootstrap_span(&bytes, &bootstrap_cfg, &mut topo_memory)?;
+    println!("Bootstrap created {} U-links from test bytes", u_links_created);
+    
+    let link_stats = topo_memory.get_link_stats();
+    println!("Link stats: U={}, I={}, S={}, avg_stability={:.3}", 
+             link_stats.u_links, link_stats.i_links, link_stats.s_links, link_stats.avg_stability);
     
     println!("\n✅ Topological memory example completed successfully!");
     println!("🧠 HelixML topological memory is working!");
     
     Ok(())
+}
+
+fn generate_test_bytes(length: usize) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(length);
+    let mut rng = 42u64;
+    
+    for _ in 0..length {
+        rng = rng.wrapping_mul(1664525).wrapping_add(1013904223);
+        let byte = (rng % 256) as u8;
+        bytes.push(byte);
+    }
+    
+    bytes
 }

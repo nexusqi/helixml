@@ -53,11 +53,13 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         
         let total_time = start_time.elapsed();
         
+        let average_score = self.compute_average_score(&suite_results);
+        let performance_metrics = self.compute_performance_metrics(&suite_results);
         Ok(BenchmarkSuiteResult {
             individual_results: suite_results,
             total_time,
-            average_score: self.compute_average_score(&suite_results),
-            performance_metrics: self.compute_performance_metrics(&suite_results),
+            average_score,
+            performance_metrics,
         })
     }
     
@@ -68,7 +70,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             self.results.insert(benchmark_name.to_string(), result.clone());
             Ok(result)
         } else {
-            Err(anyhow::anyhow!("Benchmark not found: {}", benchmark_name))
+            Err(tensor_core::TensorError::BackendError { message: format!("Benchmark not found: {}", benchmark_name) })
         }
     }
     
@@ -186,7 +188,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         // Generate test images for benchmarking
         let mut images = Vec::new();
         for _ in 0..100 {
-            let image = T::random_normal(Shape::new(vec![64, 64, 3]), DType::F32, &self.device)?;
+            let image = T::random_normal(Shape::new(vec![64, 64, 3]), 0.0, 1.0, &self.device)?;
             images.push(image);
         }
         Ok(images)
@@ -196,7 +198,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         // Generate test graphs for benchmarking
         let mut graphs = Vec::new();
         for _ in 0..100 {
-            let graph = T::random_normal(Shape::new(vec![100, 100]), DType::F32, &self.device)?;
+            let graph = T::random_normal(Shape::new(vec![100, 100]), 0.0, 1.0, &self.device)?;
             graphs.push(graph);
         }
         Ok(graphs)
@@ -281,7 +283,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             recommendations.push("Consider using parallel processing".to_string());
         }
         
-        recommendations
+        Ok(recommendations)
     }
     
     fn compute_average_score(&self, results: &[BenchmarkResult]) -> f32 {
@@ -374,10 +376,9 @@ pub struct PerformanceMetrics {
 }
 
 /// Advanced benchmarking for specific use cases
-#[derive(Debug)]
 pub struct AdvancedBenchmark<T: Tensor> {
     device: Device,
-    custom_benchmarks: Vec<CustomBenchmark<T>>,
+    custom_benchmarks: Vec<Box<dyn CustomBenchmark<T>>>,
 _phantom: std::marker::PhantomData<T>,
 }
 
@@ -392,7 +393,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Add custom benchmark
-    pub fn add_custom_benchmark(&mut self, benchmark: CustomBenchmark<T>) {
+    pub fn add_custom_benchmark(&mut self, benchmark: Box<dyn CustomBenchmark<T>>) {
         self.custom_benchmarks.push(benchmark);
     }
     
@@ -400,15 +401,15 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     pub fn run_custom_benchmarks(&mut self) -> Result<Vec<BenchmarkResult>> {
         let mut results = Vec::new();
         
-        for benchmark in &self.custom_benchmarks {
-            let result = self.run_custom_benchmark(benchmark)?;
+        for benchmark in self.custom_benchmarks.iter() {
+            let result = self.run_custom_benchmark(benchmark.as_ref())?;
             results.push(result);
         }
         
         Ok(results)
     }
     
-    fn run_custom_benchmark(&self, benchmark: &CustomBenchmark<T>) -> Result<BenchmarkResult> {
+    fn run_custom_benchmark(&self, benchmark: &dyn CustomBenchmark<T>) -> Result<BenchmarkResult> {
         let start_time = Instant::now();
         
         // Run custom benchmark logic
@@ -417,7 +418,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         let duration = start_time.elapsed();
         
         Ok(BenchmarkResult {
-            benchmark_name: benchmark.name.clone(),
+            benchmark_name: benchmark.name(),
             duration,
             score: 1.0,
             metrics: BenchmarkMetrics {
@@ -466,7 +467,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         
         // Generate large tensors to test memory usage
         for _ in 0..100 {
-            let _tensor = T::random_normal(Shape::new(vec![1000, 1000]), DType::F32, device)?;
+            let _tensor = T::random_normal(Shape::new(vec![1000, 1000]), 0.0, 1.0, device)?;
         }
         
         let duration = start.elapsed();
@@ -504,8 +505,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         
         // Perform many operations to test throughput
         for _ in 0..1000 {
-            let tensor1 = T::random_normal(Shape::new(vec![100, 100]), DType::F32, device)?;
-            let tensor2 = T::random_normal(Shape::new(vec![100, 100]), DType::F32, device)?;
+            let tensor1 = T::random_normal(Shape::new(vec![100, 100]), 0.0, 1.0, device)?;
+            let tensor2 = T::random_normal(Shape::new(vec![100, 100]), 0.0, 1.0, device)?;
             let _result = tensor1.add(&tensor2)?;
         }
         

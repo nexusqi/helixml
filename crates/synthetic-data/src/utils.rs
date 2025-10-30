@@ -76,10 +76,10 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     
     /// Normalize data to [0, 1] range
     pub fn normalize_data(&self, data: &T) -> Result<T> {
-        let min_val = data.min(None)?.to_scalar()?;
-        let max_val = data.max(None)?.to_scalar()?;
-        let range = max_val.sub(&min_val)?;
-        let normalized = data.sub(&min_val)?.div(&range)?;
+        let min_val = data.min_reduce(None, false)?.to_scalar()?;
+        let max_val = data.max_reduce(None, false)?.to_scalar()?;
+        let range = max_val - min_val;
+        let normalized = data.add_scalar(-min_val)?.mul_scalar(1.0 / range)?;
         Ok(normalized)
     }
     
@@ -93,7 +93,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     
     /// Add noise to data
     pub fn add_noise(&self, data: &T, noise_level: f32) -> Result<T> {
-        let noise = T::random_normal(data.shape(), data.dtype(), &self.device)?;
+        let noise = T::random_normal(data.shape().clone(), 0.0, 1.0, &self.device)?;
         let scaled_noise = noise.mul_scalar(noise_level)?;
         let noisy_data = data.add(&scaled_noise)?;
         Ok(noisy_data)
@@ -138,8 +138,8 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     pub fn compute_statistics(&self, data: &T) -> Result<DataStatistics> {
         let mean = data.mean(None, false)?;
         let std = data.std(None, false)?;
-        let min = data.min(None)?;
-        let max = data.max(None)?;
+        let min = data.min_reduce(None, false)?;
+        let max = data.max_reduce(None, false)?;
         
         Ok(DataStatistics {
             mean: mean.to_scalar()?,
@@ -154,7 +154,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     /// Compare two datasets
     pub fn compare_datasets(&self, data1: &[T], data2: &[T]) -> Result<DatasetComparison> {
         if data1.len() != data2.len() {
-            return Err(anyhow::anyhow!("Datasets have different lengths"));
+            return Err(tensor_core::TensorError::BackendError { message: "Datasets have different lengths".to_string() });
         }
         
         let mut similarities = Vec::new();
@@ -168,11 +168,13 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             differences.push(difference);
         }
         
+        let avg_sim = similarities.iter().sum::<f32>() / similarities.len() as f32;
+        let avg_diff = differences.iter().sum::<f32>() / differences.len() as f32;
         Ok(DatasetComparison {
             similarities,
             differences,
-            average_similarity: similarities.iter().sum::<f32>() / similarities.len() as f32,
-            average_difference: differences.iter().sum::<f32>() / differences.len() as f32,
+            average_similarity: avg_sim,
+            average_difference: avg_diff,
         })
     }
     
@@ -214,12 +216,14 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             quality_scores.push(quality);
         }
         
+        let overall_quality = quality_scores.iter().sum::<f32>() / quality_scores.len() as f32;
+        let recommendations = self.generate_recommendations(&quality_scores);
         Ok(DataReport {
             total_samples: data.len(),
             statistics,
             quality_scores,
-            overall_quality: quality_scores.iter().sum::<f32>() / quality_scores.len() as f32,
-            recommendations: self.generate_recommendations(&quality_scores),
+            overall_quality,
+            recommendations,
         })
     }
     
@@ -469,9 +473,10 @@ impl ValidationUtils {
             checks.push(check);
         }
         
+        let overall_valid = checks.iter().all(|c| c.passed);
         Ok(ValidationResult {
             checks,
-            overall_valid: checks.iter().all(|c| c.passed),
+            overall_valid,
         })
     }
     

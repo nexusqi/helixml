@@ -9,4 +9,5 @@ description = "🌀 Experimental model combining all HelixML components"
 
 [dependencies]
 helix_ml = { path = "../../lib" }
+scheduling = { path = "../../crates/scheduling" }
 anyhow = { workspace = true }

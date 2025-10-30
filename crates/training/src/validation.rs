@@ -3,16 +3,15 @@
 //! Advanced validation system for model evaluation.
 
 use crate::metrics::{Metrics, Accuracy, Precision, Recall, F1Score};
-use tensor_core::tensor::{Tensor, TensorOps};
 use backend_cpu::CpuTensor;
+use tensor_core::tensor::TensorOps;
 use std::collections::HashMap;
 use anyhow::Result as AnyResult;
 
-/// Validation manager
-pub struct ValidationManager<T: Tensor> {
-    _phantom: std::marker::PhantomData<T>,
+/// Validation manager (CPU tensor specialized)
+pub struct ValidationManager {
     /// Validation metrics
-    metrics: HashMap<String, Box<dyn ValidationMetric>>,
+    metrics: HashMap<String, Box<dyn ValidationMetric>>, 
     /// Validation history
     history: Vec<ValidationResult>,
 }
@@ -45,14 +44,10 @@ pub struct ValidationResult {
     pub timestamp: std::time::SystemTime,
 }
 
-impl<T: Tensor> ValidationManager<T> {
+impl ValidationManager {
     /// Create new validation manager
     pub fn new() -> Self {
-        Self {
-            _phantom: std::marker::PhantomData,
-            metrics: HashMap::new(),
-            history: Vec::new(),
-        }
+        Self { metrics: HashMap::new(), history: Vec::new() }
     }
     
     /// Add metric

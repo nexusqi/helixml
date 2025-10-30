@@ -164,9 +164,10 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         let pattern_check = self.check_pattern_validity(sequence)?;
         checks.push(pattern_check);
         
+        let overall_score = self.compute_individual_score(&checks);
         Ok(IndividualVerification {
             checks,
-            overall_score: self.compute_individual_score(&checks),
+            overall_score,
         })
     }
     
@@ -183,18 +184,19 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         });
         
         // Check pixel value range
-        let min_val = image.min(None)?.to_scalar()?;
-        let max_val = image.max(None)?.to_scalar()?;
-        let range_check = self.check_pixel_range(min_val, max_val)?;
+        let min_tensor = image.min_reduce(None, false)?;
+        let max_tensor = image.max_reduce(None, false)?;
+        let range_check = self.check_pixel_range(min_tensor, max_tensor)?;
         checks.push(range_check);
         
         // Check for patterns
         let pattern_check = self.check_pattern_validity(image)?;
         checks.push(pattern_check);
         
+        let overall_score = self.compute_individual_score(&checks);
         Ok(IndividualVerification {
             checks,
-            overall_score: self.compute_individual_score(&checks),
+            overall_score,
         })
     }
     
@@ -214,9 +216,10 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         let graph_check = self.check_graph_properties(graph)?;
         checks.push(graph_check);
         
+        let overall_score = self.compute_individual_score(&checks);
         Ok(IndividualVerification {
             checks,
-            overall_score: self.compute_individual_score(&checks),
+            overall_score,
         })
     }
     
@@ -236,9 +239,10 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         let temporal_check = self.check_temporal_properties(series)?;
         checks.push(temporal_check);
         
+        let overall_score = self.compute_individual_score(&checks);
         Ok(IndividualVerification {
             checks,
-            overall_score: self.compute_individual_score(&checks),
+            overall_score,
         })
     }
     
@@ -258,9 +262,10 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         let text_check = self.check_text_properties(text)?;
         checks.push(text_check);
         
+        let overall_score = self.compute_individual_score(&checks);
         Ok(IndividualVerification {
             checks,
-            overall_score: self.compute_individual_score(&checks),
+            overall_score,
         })
     }
     
@@ -453,8 +458,6 @@ impl Default for QualityMetrics {
             pattern_validity: 1.0,
             noise_level: 0.1,
             distribution_shape: 1.0,
-
-        _phantom: std::marker::PhantomData,
         }
     }
 }

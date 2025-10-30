@@ -7,7 +7,7 @@ use multimodal::{
     MultimodalProcessor, Modality, MultimodalData, DataMetadata,
     processors::{IntelligentProcessor, OptimizationStrategy},
 };
-use tensor_core::{Device, DType, Shape, Tensor};
+use tensor_core::Device;
 use backend_cpu::CpuTensor;
 use anyhow::Result;
 use tokio::time::{sleep, Duration};

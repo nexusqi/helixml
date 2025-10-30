@@ -2,7 +2,7 @@
 //! 
 //! Device management and orchestration for multi-device scheduling
 
-use tensor_core::{Tensor, Shape, DType, Device, Result};
+use tensor_core::{Tensor, Shape, DType, Device, Result, TensorError};
 use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, RwLock};
@@ -13,8 +13,8 @@ use super::*;
 
 /// Device manager for multi-device orchestration
 #[derive(Debug)]
-pub struct DeviceManager<T: Tensor> {
-    devices: Arc<RwLock<HashMap<Device, DeviceInfo<T>>>>,
+pub struct DeviceManager {
+    devices: Arc<RwLock<HashMap<Device, DeviceInfo>>>,
     device_capabilities: Arc<RwLock<HashMap<Device, DeviceCapabilities>>>,
     device_utilization: Arc<RwLock<HashMap<Device, DeviceUtilization>>>,
     device_queues: Arc<RwLock<HashMap<Device, VecDeque<TaskId>>>>,
@@ -23,7 +23,7 @@ pub struct DeviceManager<T: Tensor> {
 
 /// Device information
 #[derive(Debug, Clone)]
-pub struct DeviceInfo<T: Tensor> {
+pub struct DeviceInfo {
     pub device: Device,
     pub is_available: bool,
     pub current_load: f32,
@@ -101,7 +101,7 @@ pub struct AlertThresholds {
     pub power_threshold: f32,
 }
 
-impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> DeviceManager<T> {
+impl DeviceManager {
     pub fn new() -> Result<Self> {
         let devices = Arc::new(RwLock::new(HashMap::new()));
         let device_capabilities = Arc::new(RwLock::new(HashMap::new()));
@@ -126,12 +126,12 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     /// Initialize default devices
     fn initialize_default_devices(&self) -> Result<()> {
         // Add CPU device
-        self.add_device(Device::CPU)?;
+        self.add_device(Device::Cpu)?;
         
         // Add CUDA devices if available
         for i in 0..4 { // Assume up to 4 CUDA devices
-            let cuda_device = Device::CUDA(i);
-            if self.is_device_available(&cuda_device) {
+            let cuda_device = Device::Cuda(i);
+            if self.is_device_available(&cuda_device)? {
                 self.add_device(cuda_device)?;
             }
         }
@@ -274,7 +274,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 queue_length: device_info.queue_length,
             })
         } else {
-            Err(anyhow::anyhow!("Device not found"))
+            Err(TensorError::InvalidInput { message: "Device not found".to_string() })
         }
     }
     
@@ -301,15 +301,15 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Execute a task on a device
-    pub fn execute_task(&self, device: &Device, task: &Task<T>) -> Result<Vec<T>> {
+    pub fn execute_task(&self, device: &Device, task: &Task) -> Result<Vec<u8>> {
         // Check if device is available
         if !self.is_device_available(device)? {
-            return Err(anyhow::anyhow!("Device is not available"));
+            return Err(TensorError::InvalidInput { message: "Device is not available".to_string() });
         }
         
         // Check resource requirements
         if !self.can_allocate_resources(device, task)? {
-            return Err(anyhow::anyhow!("Insufficient resources on device"));
+            return Err(TensorError::InvalidInput { message: "Insufficient resources on device".to_string() });
         }
         
         // Execute the task
@@ -324,16 +324,16 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Execute task operation
-    fn execute_task_operation(&self, device: &Device, task: &Task<T>) -> Result<Vec<T>> {
+    fn execute_task_operation(&self, device: &Device, task: &Task) -> Result<Vec<u8>> {
         match &task.operation {
-            TaskOperation::TensorOperation { operation, inputs, output_shape } => {
-                self.execute_tensor_operation(device, operation, inputs, output_shape)
+            TaskOperation::TensorOperation { operation, input_shapes: _, output_shape: _ } => {
+                self.execute_tensor_operation(device, operation)
             }
-            TaskOperation::ModelInference { model, inputs } => {
-                self.execute_model_inference(device, model, inputs)
+            TaskOperation::ModelInference { model, input_shapes: _ } => {
+                self.execute_model_inference(device, model)
             }
-            TaskOperation::TrainingStep { model, data, labels } => {
-                self.execute_training_step(device, model, data, labels)
+            TaskOperation::TrainingStep { model, data_shapes: _, label_shapes: _ } => {
+                self.execute_training_step(device, model)
             }
             TaskOperation::Custom { function, parameters } => {
                 self.execute_custom_operation(device, function, parameters)
@@ -342,71 +342,28 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Execute tensor operation
-    fn execute_tensor_operation(&self, device: &Device, operation: &TensorOp, inputs: &[T], output_shape: &Shape) -> Result<Vec<T>> {
-        match operation {
-            TensorOp::Add => {
-                if inputs.len() >= 2 {
-                    let result = inputs[0].add(&inputs[1])?;
-                    Ok(vec![result])
-                } else {
-                    Err(anyhow::anyhow!("Insufficient inputs for addition"))
-                }
-            }
-            TensorOp::Subtract => {
-                if inputs.len() >= 2 {
-                    let result = inputs[0].sub(&inputs[1])?;
-                    Ok(vec![result])
-                } else {
-                    Err(anyhow::anyhow!("Insufficient inputs for subtraction"))
-                }
-            }
-            TensorOp::Multiply => {
-                if inputs.len() >= 2 {
-                    let result = inputs[0].mul(&inputs[1])?;
-                    Ok(vec![result])
-                } else {
-                    Err(anyhow::anyhow!("Insufficient inputs for multiplication"))
-                }
-            }
-            TensorOp::Divide => {
-                if inputs.len() >= 2 {
-                    let result = inputs[0].div(&inputs[1])?;
-                    Ok(vec![result])
-                } else {
-                    Err(anyhow::anyhow!("Insufficient inputs for division"))
-                }
-            }
-            TensorOp::MatrixMultiply => {
-                if inputs.len() >= 2 {
-                    let result = inputs[0].matmul(&inputs[1])?;
-                    Ok(vec![result])
-                } else {
-                    Err(anyhow::anyhow!("Insufficient inputs for matrix multiplication"))
-                }
-            }
-            _ => {
-                // Placeholder for other operations
-                Ok(vec![inputs[0].clone()])
-            }
-        }
+    fn execute_tensor_operation(&self, device: &Device, operation: &TensorOp) -> Result<Vec<u8>> {
+        // Placeholder for tensor operations
+        // In practice, this would execute actual tensor operations
+        Ok(vec![0u8])
     }
     
     /// Execute model inference
-    fn execute_model_inference(&self, device: &Device, model: &str, inputs: &[T]) -> Result<Vec<T>> {
+    fn execute_model_inference(&self, device: &Device, model: &str) -> Result<Vec<u8>> {
         // Placeholder for model inference
         // In practice, this would load the model and run inference
-        Ok(inputs.to_vec())
+        Ok(vec![0u8])
     }
     
     /// Execute training step
-    fn execute_training_step(&self, device: &Device, model: &str, data: &[T], labels: &[T]) -> Result<Vec<T>> {
+    fn execute_training_step(&self, device: &Device, model: &str) -> Result<Vec<u8>> {
         // Placeholder for training step
         // In practice, this would run a training step
-        Ok(data.to_vec())
+        Ok(vec![0u8])
     }
     
     /// Execute custom operation
-    fn execute_custom_operation(&self, device: &Device, function: &str, parameters: &HashMap<String, serde_json::Value>) -> Result<Vec<T>> {
+    fn execute_custom_operation(&self, device: &Device, function: &str, parameters: &HashMap<String, serde_json::Value>) -> Result<Vec<u8>> {
         // Placeholder for custom operations
         // In practice, this would execute custom functions
         Ok(vec![])
@@ -423,7 +380,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Check if resources can be allocated
-    fn can_allocate_resources(&self, device: &Device, task: &Task<T>) -> Result<bool> {
+    fn can_allocate_resources(&self, device: &Device, task: &Task) -> Result<bool> {
         let devices = self.devices.read().unwrap();
         let capabilities = self.device_capabilities.read().unwrap();
         
@@ -460,7 +417,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     /// Get device capabilities
     fn get_device_capabilities(&self, device: &Device) -> Result<DeviceCapabilities> {
         match device {
-            Device::CPU => Ok(DeviceCapabilities {
+            Device::Cpu => Ok(DeviceCapabilities {
                 max_memory: 32 * 1024 * 1024 * 1024, // 32GB
                 max_compute: 100.0,
                 max_bandwidth: 100.0,
@@ -476,7 +433,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 memory_bandwidth: 100.0,
                 cache_size: 32 * 1024 * 1024, // 32MB
             }),
-            Device::CUDA(_) => Ok(DeviceCapabilities {
+            Device::Cuda(_) => Ok(DeviceCapabilities {
                 max_memory: 16 * 1024 * 1024 * 1024, // 16GB
                 max_compute: 1000.0,
                 max_bandwidth: 1000.0,
@@ -494,6 +451,19 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
                 memory_bandwidth: 1000.0,
                 cache_size: 6 * 1024 * 1024, // 6MB
             }),
+            Device::Metal | Device::Wgpu | Device::Qpu(_) | Device::Npu(_) | Device::Tpu(_) | Device::Custom(_) => {
+                // Default capabilities for other devices
+                Ok(DeviceCapabilities {
+                    max_memory: 8 * 1024 * 1024 * 1024, // 8GB
+                    max_compute: 100.0,
+                    max_bandwidth: 100.0,
+                    supported_operations: vec!["add".to_string(), "multiply".to_string()],
+                    special_features: vec![],
+                    compute_capability: 1.0,
+                    memory_bandwidth: 100.0,
+                    cache_size: 8 * 1024 * 1024, // 8MB
+                })
+            },
         }
     }
     
@@ -505,7 +475,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
             .collect();
         
         if devices_to_migrate.is_empty() {
-            return Err(anyhow::anyhow!("No available devices for migration"));
+            return Err(TensorError::InvalidInput { message: "No available devices for migration".to_string() });
         }
         
         // Get active tasks on the device

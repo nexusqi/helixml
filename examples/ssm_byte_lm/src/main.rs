@@ -5,7 +5,7 @@
 
 use std::env;
 use tensor_core::*;
-use meanings::bootstrap::{BootstrapCfg, BatchStats, bootstrap_span, observe_batch, maybe_replay};
+use meanings::bootstrap::{BootstrapCfg, BatchStats, bootstrap_span, observe_batch, maybe_replay, ReplayReport};
 use nn::{S4Block, MambaBlock, Linear, SiLU, Module};
 use topo_memory::*;
 use tensor_core::tensor::{TensorRandom, TensorOps};
@@ -86,11 +86,15 @@ fn train_phase_a_bootstrap() -> std::result::Result<(), Box<dyn std::error::Erro
     
     // Create bootstrap configuration
     let bootstrap_cfg = BootstrapCfg {
+        enabled: true,
+        window: 256,
+        pmi_threshold: 0.1,
+        replay_period: 50,
         theta_low: 0.2,
         theta_high: 0.6,
         decay: 0.01,
-        replay_boost: 1.5,
-        max_u_links: 1000,
+        replay_boost: true,
+        u_pool_size: 1000,
     };
     
     // Create topological memory
@@ -109,12 +113,9 @@ fn train_phase_a_bootstrap() -> std::result::Result<(), Box<dyn std::error::Erro
         println!("📖 Epoch {}/2", epoch + 1);
         
         for step in 0..100 {
-            // Simulate byte sequence
-            let bytes = generate_random_bytes(seq_len);
-            
             // Bootstrap: Create U-links from bytes
-            let input_tensor = CpuTensor::random_uniform(Shape::new(vec![seq_len, 1]), 0.0, 1.0, &device)?;
-            let u_links_created = bootstrap_span(&input_tensor, &bootstrap_cfg, &device)?;
+            let bytes = generate_random_bytes(seq_len);
+            let u_links_created = bootstrap_span(&bytes, &bootstrap_cfg, &mut topo_memory)?;
             
             // Create input tensor
             let input = CpuTensor::random_uniform(
@@ -130,20 +131,22 @@ fn train_phase_a_bootstrap() -> std::result::Result<(), Box<dyn std::error::Erro
             
             // Calculate batch statistics
             let stats = BatchStats {
-                u_links: 5,
-                i_links: 3,
-                s_links: 2,
-                avg_stability: 0.7,
+                repetition: 0.1,
+                energy: 0.5,
+                connectivity: 0.01,
+                phase_sync: 0.3,
             };
             
             // Observe batch
-            observe_batch(&mut topo_memory, 0.1, 0.5, 0.01, 0.3)?;
+            observe_batch(stats, &mut topo_memory)?;
             
             // Periodic replay
             if step % 50 == 0 {
-                let report = maybe_replay(&mut topo_memory, &bootstrap_cfg)?;
-                println!("  Step {}: Replay - {} U→I, {} I→S", 
-                        step, report.i_links_created, report.s_links_created);
+                let report = maybe_replay(step, &bootstrap_cfg, &mut topo_memory)?;
+                if let Some(r) = report {
+                    println!("  Step {}: Replay - {} U→I, {} I→S", 
+                            step, r.i_links_created, r.s_links_created);
+                }
             }
             
             if step % 20 == 0 {
@@ -171,11 +174,15 @@ fn train_phase_b_consolidation() -> std::result::Result<(), Box<dyn std::error::
     
     // Phase B configuration
     let bootstrap_cfg = BootstrapCfg {
+        enabled: true,
+        window: 512,
+        pmi_threshold: 0.15,
+        replay_period: 75,
         theta_low: 0.3,
         theta_high: 0.7,
         decay: 0.01,
-        replay_boost: 1.5,
-        max_u_links: 1000,
+        replay_boost: true,
+        u_pool_size: 1000,
     };
     
     let mut topo_memory = TopologicalMemory::<CpuTensor>::new(d_model, 5, 0.6, 0.8, &device)?;
@@ -192,8 +199,7 @@ fn train_phase_b_consolidation() -> std::result::Result<(), Box<dyn std::error::
             let bytes = generate_random_bytes(seq_len);
             
             // Bootstrap with higher threshold
-            let input_tensor = CpuTensor::random_uniform(Shape::new(vec![seq_len, 1]), 0.0, 1.0, &device)?;
-            let u_links_created = bootstrap_span(&input_tensor, &bootstrap_cfg, &device)?;
+            let u_links_created = bootstrap_span(&bytes, &bootstrap_cfg, &mut topo_memory)?;
             
             let input = CpuTensor::random_uniform(
                 Shape::new(vec![seq_len, 1]),
@@ -206,18 +212,20 @@ fn train_phase_b_consolidation() -> std::result::Result<(), Box<dyn std::error::
             let output = linear.forward(&s4_output)?;
             
             let stats = BatchStats {
-                u_links: 5,
-                i_links: 3,
-                s_links: 2,
-                avg_stability: 0.7,
+                repetition: 0.1,
+                energy: 0.5,
+                connectivity: 0.01,
+                phase_sync: 0.3,
             };
             
-            observe_batch(&mut topo_memory, 0.1, 0.5, 0.01, 0.3)?;
+            observe_batch(stats, &mut topo_memory)?;
             
             if step % 75 == 0 {
-                let report = maybe_replay(&mut topo_memory, &bootstrap_cfg)?;
-                println!("  Step {}: Replay - {} U→I, {} I→S", 
-                        step, report.i_links_created, report.s_links_created);
+                let report = maybe_replay(step, &bootstrap_cfg, &mut topo_memory)?;
+                if let Some(r) = report {
+                    println!("  Step {}: Replay - {} U→I, {} I→S", 
+                            step, r.i_links_created, r.s_links_created);
+                }
             }
             
             if step % 30 == 0 {
@@ -245,11 +253,15 @@ fn train_phase_c_meaning_first() -> std::result::Result<(), Box<dyn std::error::
     
     // Phase C configuration - bootstrap disabled
     let bootstrap_cfg = BootstrapCfg {
+        enabled: false,
+        window: 1024,
+        pmi_threshold: 0.2,
+        replay_period: 100,
         theta_low: 0.4,
         theta_high: 0.8,
         decay: 0.005, // Slower decay
-        replay_boost: 1.5,
-        max_u_links: 500,
+        replay_boost: true,
+        u_pool_size: 500,
     };
     
     let mut topo_memory = TopologicalMemory::<CpuTensor>::new(d_model, 5, 0.6, 0.8, &device)?;
@@ -277,13 +289,13 @@ fn train_phase_c_meaning_first() -> std::result::Result<(), Box<dyn std::error::
             let output = linear.forward(&s4_output)?;
             
             let stats = BatchStats {
-                u_links: 5,
-                i_links: 3,
-                s_links: 2,
-                avg_stability: 0.7,
+                repetition: 0.1,
+                energy: 0.5,
+                connectivity: 0.01,
+                phase_sync: 0.3,
             };
             
-            observe_batch(&mut topo_memory, 0.1, 0.5, 0.01, 0.3)?;
+            observe_batch(stats, &mut topo_memory)?;
             
             // Periodic memory consolidation
             if step % 100 == 0 {
@@ -318,11 +330,15 @@ fn run_meaning_demo() -> std::result::Result<(), Box<dyn std::error::Error>> {
     
     // Create bootstrap configuration
     let bootstrap_cfg = BootstrapCfg {
+        enabled: true,
+        window: 256,
+        pmi_threshold: 0.1,
+        replay_period: 3,
         theta_low: 0.1,
         theta_high: 0.5,
         decay: 0.01,
-        replay_boost: 1.5,
-        max_u_links: 1000,
+        replay_boost: true,
+        u_pool_size: 1000,
     };
     
     // Create topological memory
@@ -339,25 +355,26 @@ fn run_meaning_demo() -> std::result::Result<(), Box<dyn std::error::Error>> {
     println!("📝 Processing text: \"{}\"", text);
     
     // Bootstrap: Create U-links
-    let input_tensor = CpuTensor::random_uniform(Shape::new(vec![bytes.len(), 1]), 0.0, 1.0, &device)?;
-    let u_links_created = bootstrap_span(&input_tensor, &bootstrap_cfg, &device)?;
-    println!("🔗 Created {:?} U-links from text", u_links_created);
+    let u_links_created = bootstrap_span(&bytes, &bootstrap_cfg, &mut topo_memory)?;
+    println!("🔗 Created {} U-links from text", u_links_created);
     
     // Simulate training steps
     for step in 0..10 {
         let stats = BatchStats {
-            u_links: 5,
-            i_links: 3,
-            s_links: 2,
-            avg_stability: 0.7,
+            repetition: 0.1,
+            energy: 0.5,
+            connectivity: 0.01,
+            phase_sync: 0.3,
         };
         
-        observe_batch(&mut topo_memory, 0.1, 0.5, 0.01, 0.3)?;
+        observe_batch(stats, &mut topo_memory)?;
         
         if step % 3 == 0 {
-            let report = maybe_replay(&mut topo_memory, &bootstrap_cfg)?;
-            println!("🔄 Step {}: Replay - {} U→I, {} I→S", 
-                    step, report.i_links_created, report.s_links_created);
+            let report = maybe_replay(step, &bootstrap_cfg, &mut topo_memory)?;
+            if let Some(r) = report {
+                println!("🔄 Step {}: Replay - {} U→I, {} I→S", 
+                        step, r.i_links_created, r.s_links_created);
+            }
         }
         
         let link_stats = topo_memory.get_link_stats();

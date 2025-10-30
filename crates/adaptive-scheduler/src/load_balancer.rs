@@ -2,7 +2,7 @@
 //! 
 //! Load balancing strategies for multi-device task distribution
 
-use tensor_core::{Tensor, Shape, DType, Device, Result};
+use tensor_core::{Tensor, Shape, DType, Device, Result, TensorError};
 use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
@@ -15,7 +15,7 @@ use super::*;
 
 /// Load balancer for distributing tasks across devices
 #[derive(Debug)]
-pub struct LoadBalancer<T: Tensor> {
+pub struct LoadBalancer {
     strategy: LoadBalancingStrategy,
     device_weights: Arc<RwLock<HashMap<Device, f32>>>,
     device_loads: Arc<RwLock<HashMap<Device, f32>>>,
@@ -46,7 +46,7 @@ pub struct AdaptiveParameters {
     pub rebalance_threshold: f32,
 }
 
-impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision + TensorStats + TensorReduce> LoadBalancer<T> {
+impl LoadBalancer {
     pub fn new(strategy: LoadBalancingStrategy) -> Result<Self> {
         Ok(Self {
             strategy,
@@ -66,9 +66,9 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Select the best device for a task
-    pub fn select_device(&self, available_devices: &[Device], task: &Task<T>) -> Result<Device> {
+    pub fn select_device(&self, available_devices: &[Device], task: &Task) -> Result<Device> {
         if available_devices.is_empty() {
-            return Err(anyhow::anyhow!("No available devices"));
+            return Err(TensorError::InvalidInput { message: "No available devices".to_string() });
         }
         
         match self.strategy {
@@ -228,7 +228,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Resource-based device selection
-    fn select_resource_based(&self, available_devices: &[Device], task: &Task<T>) -> Result<Device> {
+    fn select_resource_based(&self, available_devices: &[Device], task: &Task) -> Result<Device> {
         let loads = self.device_loads.read().unwrap();
         let mut best_device = available_devices[0].clone();
         let mut best_score = f32::MIN;
@@ -262,7 +262,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Performance-based device selection
-    fn select_performance_based(&self, available_devices: &[Device], task: &Task<T>) -> Result<Device> {
+    fn select_performance_based(&self, available_devices: &[Device], task: &Task) -> Result<Device> {
         let performance = self.device_performance.read().unwrap();
         let loads = self.device_loads.read().unwrap();
         
@@ -293,7 +293,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     }
     
     /// Adaptive device selection
-    fn select_adaptive(&self, available_devices: &[Device], task: &Task<T>) -> Result<Device> {
+    fn select_adaptive(&self, available_devices: &[Device], task: &Task) -> Result<Device> {
         let params = self.adaptive_parameters.read().unwrap();
         let mut rng = thread_rng();
         
