@@ -5,31 +5,35 @@
 use crate::{LossFunction, Optimizer, Scheduler, Metrics, CheckpointManager, TrainingMonitor, DataLoader, ValidationManager};
 use hal::DeviceType;
 use nn::{Module, CheckpointableModule};
-use tensor_core::tensor::{Tensor, TensorOps};
-use backend_cpu::CpuTensor;
+use tensor_core::tensor::{Tensor, TensorOps, TensorReduce, TensorBroadcast, TensorRandom, TensorStats, TensorActivation};
 use autograd::AutogradOps;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use anyhow::Result as AnyResult;
 
 /// Main trainer for HelixML models
-pub struct Trainer<M: Module<CpuTensor> + CheckpointableModule<CpuTensor>> {
+/// Generic over tensor type T, allowing use with CPU, CUDA, or any other tensor backend
+pub struct Trainer<M, T> 
+where
+    M: Module<T> + CheckpointableModule<T>,
+    T: Tensor + TensorOps + TensorReduce + TensorBroadcast + TensorRandom + TensorStats + TensorActivation + Clone + 'static,
+{
     /// Model to train
     model: Arc<Mutex<M>>,
     /// Loss function
-    loss_fn: Box<dyn LossFunction<CpuTensor>>,
+    loss_fn: Box<dyn LossFunction<T>>,
     /// Optimizer
-    optimizer: Arc<Mutex<Box<dyn Optimizer<CpuTensor>>>>,
+    optimizer: Arc<Mutex<Box<dyn Optimizer<T>>>>,
     /// Learning rate scheduler
-    scheduler: Arc<Mutex<Box<dyn Scheduler<CpuTensor>>>>,
+    scheduler: Arc<Mutex<Box<dyn Scheduler<T>>>>,
     /// Metrics tracker
     metrics: Arc<Mutex<Metrics>>,
     /// Checkpoint manager
-    checkpoint_manager: Arc<CheckpointManager<CpuTensor>>,
+    checkpoint_manager: Arc<CheckpointManager<T>>,
     /// Training monitor
     monitor: Arc<TrainingMonitor>,
     /// Data loader
-    data_loader: Arc<DataLoader<CpuTensor>>,
+    data_loader: Arc<DataLoader<T>>,
     /// Validation manager
     validation_manager: Arc<ValidationManager>,
     /// Training configuration
@@ -37,7 +41,7 @@ pub struct Trainer<M: Module<CpuTensor> + CheckpointableModule<CpuTensor>> {
     /// Training state
     state: Arc<Mutex<TrainingState>>,
     /// Autograd context for gradient computation (optional, for future integration)
-    autograd_ctx: Option<Arc<Mutex<AutogradOps<CpuTensor>>>>,
+    autograd_ctx: Option<Arc<Mutex<AutogradOps<T>>>>,
 }
 
 /// Training configuration
@@ -150,13 +154,17 @@ impl Default for TrainingHistory {
     }
 }
 
-impl<M: Module<CpuTensor> + CheckpointableModule<CpuTensor>> Trainer<M> {
+impl<M, T> Trainer<M, T>
+where
+    M: Module<T> + CheckpointableModule<T>,
+    T: Tensor + TensorOps + TensorReduce + TensorBroadcast + TensorRandom + TensorStats + TensorActivation + Clone + 'static,
+{
     /// Create new trainer
     pub fn new(
         model: M,
-        loss_fn: Box<dyn LossFunction<CpuTensor>>,
-        optimizer: Box<dyn Optimizer<CpuTensor>>,
-        scheduler: Box<dyn Scheduler<CpuTensor>>,
+        loss_fn: Box<dyn LossFunction<T>>,
+        optimizer: Box<dyn Optimizer<T>>,
+        scheduler: Box<dyn Scheduler<T>>,
         config: TrainingConfig,
     ) -> AnyResult<Self> {
         let model = Arc::new(Mutex::new(model));
@@ -166,6 +174,7 @@ impl<M: Module<CpuTensor> + CheckpointableModule<CpuTensor>> Trainer<M> {
         let checkpoint_manager = Arc::new(CheckpointManager::new()?);
         let monitor = Arc::new(TrainingMonitor::new());
         let data_loader = Arc::new(DataLoader::new(config.num_workers, config.pin_memory)?);
+        // Note: DataLoader needs to be generic over T - will need to update it
         let validation_manager = Arc::new(ValidationManager::new());
         
         let state = Arc::new(Mutex::new(TrainingState {
@@ -193,11 +202,13 @@ impl<M: Module<CpuTensor> + CheckpointableModule<CpuTensor>> Trainer<M> {
             config,
             state,
             autograd_ctx: Some(Arc::new(Mutex::new(AutogradOps::new()))), // Enable autograd for future integration
+            // Note: AutogradOps requires T: Tensor + TensorOps + TensorReduce + TensorBroadcast + TensorStats + TensorActivation
+            // which matches our bounds
         })
     }
     
     /// Train the model
-    pub async fn train(&self, train_data: &[CpuTensor], validation_data: Option<&[CpuTensor]>) -> AnyResult<()> {
+    pub async fn train(&self, train_data: &[T], validation_data: Option<&[T]>) -> AnyResult<()> {
         let mut state = self.state.lock().unwrap();
         state.is_training = true;
         state.start_time = Instant::now();
@@ -242,7 +253,7 @@ impl<M: Module<CpuTensor> + CheckpointableModule<CpuTensor>> Trainer<M> {
     }
     
     /// Train single epoch
-    async fn train_epoch(&self, epoch: usize, data: &[CpuTensor]) -> AnyResult<()> {
+    async fn train_epoch(&self, epoch: usize, data: &[T]) -> AnyResult<()> {
         let mut state = self.state.lock().unwrap();
         state.current_epoch = epoch;
         drop(state);
@@ -285,7 +296,7 @@ impl<M: Module<CpuTensor> + CheckpointableModule<CpuTensor>> Trainer<M> {
     }
     
     /// Train single step
-    async fn train_step(&self, batch: &[CpuTensor]) -> AnyResult<f64> {
+    async fn train_step(&self, batch: &[T]) -> AnyResult<f64> {
         if batch.is_empty() {
             return Ok(0.0);
         }
@@ -297,7 +308,8 @@ impl<M: Module<CpuTensor> + CheckpointableModule<CpuTensor>> Trainer<M> {
             batch[0].clone()
         } else {
             // Stack tensors along batch dimension (dim=0)
-            CpuTensor::stack(batch.to_vec(), 0)?
+            // Use Tensor trait's stack method
+            T::stack(batch.iter().map(|t| t.clone()).collect(), 0)?
         };
         
         // Forward pass
@@ -324,45 +336,94 @@ impl<M: Module<CpuTensor> + CheckpointableModule<CpuTensor>> Trainer<M> {
             .map_err(|e| anyhow::anyhow!("Failed to extract loss scalar: {}", e))? as f64;
         
         // Backward pass - compute gradients using autograd
-        // Note: Full integration requires Module::forward to work through AutogradOps
-        // For now, we implement a simplified version that works with current Module interface
+        // Integrate autograd for gradient computation
         
         // Zero gradients before backward pass
         self.optimizer.lock().unwrap().zero_grad()?;
         
-        // In a full implementation, forward pass would go through AutogradOps
-        // and loss would be tracked. For now, we'll work with what we have:
-        // - Model parameters are available through Module::parameters()
-        // - We need gradients - these would come from autograd backward pass
-        
-        // Simplified approach: For training to work, we need gradients
-        // In practice, this would require:
-        // 1. Wrapping forward pass through AutogradOps::tensor() calls
-        // 2. Computing loss through autograd operations
-        // 3. Calling backward() on loss tensor ID
-        // 4. Extracting gradients from parameter DiffTensors
-        
-        // Placeholder for full autograd integration:
-        // The proper way would be:
-        // let mut autograd = self.autograd_ctx.as_ref().unwrap().lock().unwrap();
-        // let input_id = autograd.tensor(input.clone(), false)?; // Don't track input
-        // ... forward through autograd ...
-        // let loss_id = autograd.tensor(loss.clone(), true)?; // Track loss
-        // autograd.backward(loss_id)?;
-        // 
-        // Then extract gradients from model parameters that were registered with autograd
-        
-        // For now, we acknowledge this limitation and structure the code for future integration
-        // The optimizer.step() method is ready and will work once gradients are provided
-        
-        // Note: Actual gradient computation through autograd requires refactoring Module::forward
-        // to work with AutogradOps context, which is a larger architectural change.
+        // Use autograd to compute gradients
+        if let Some(autograd_ctx) = &self.autograd_ctx {
+            let mut autograd = autograd_ctx.lock().unwrap();
+            
+            // Clear previous computation graph
+            autograd.clear();
+            
+            // Re-acquire model lock for forward pass
+            let mut model = self.model.lock().unwrap();
+            
+            // Forward pass through autograd
+            // Create input tensor in autograd context (don't track input gradients)
+            let input_id = autograd.tensor(input.clone(), false);
+            
+            // Perform forward pass through model
+            // Note: This is a simplified approach - ideally Module::forward would work through autograd
+            // For now, we do forward outside autograd, then wrap the output
+            let model_output = model.forward(&input)?;
+            
+            // Register output in autograd for gradient tracking
+            let output_id = autograd.tensor(model_output, true);
+            
+            // Compute loss through autograd operations
+            // Create target tensor (don't track target gradients)
+            let target_id = autograd.tensor(target.clone(), false);
+            
+            // Compute loss: (output - target)^2
+            let diff_id = autograd.sub(output_id, target_id)?;
+            let squared_id = autograd.mul(diff_id, diff_id)?;
+            let loss_id = autograd.mean(squared_id, None, false)?;
+            
+            // Backward pass - this will compute gradients for all tensors with requires_grad=true
+            autograd.backward(loss_id)?;
+            
+            // Extract gradients for model parameters
+            // Get mutable access to model parameters
+            let param_muts = model.parameters_mut();
+            drop(model); // Release lock before optimizer operations
+            
+            // Collect parameter-gradient pairs for optimizer
+            // Note: We need to match parameters with their gradients from autograd context
+            // This requires storing parameter IDs during forward pass
+            // For now, implement a mapping based on parameter order
+            
+            // Get gradients from autograd context for tracked tensors
+            // The challenge is matching autograd tensor IDs with Module parameters
+            // In a full implementation, we'd store parameter_id -> autograd_id mapping
+            
+            // Simplified approach: Extract all gradients from autograd context
+            // and match them with parameters by index (this assumes order is preserved)
+            let context = autograd.context();
+            let mut param_grad_pairs: Vec<(&mut T, T)> = Vec::new();
+            
+            // Try to extract gradients for parameters
+            // Note: This is a placeholder - full implementation would track parameter IDs
+            // during autograd tensor creation
+            for (idx, param) in param_muts.iter_mut().enumerate() {
+                // In a full implementation, we'd have stored param_id -> autograd_id mapping
+                // For now, we iterate through autograd tensors to find matching gradients
+                // This is inefficient but demonstrates the concept
+                
+                // TODO: Implement proper parameter ID tracking during autograd registration
+                // For now, skip gradient application - this will be completed in next iteration
+            }
+            
+            // Note: Full gradient application requires:
+            // 1. Tracking parameter -> autograd_id mapping during forward pass
+            // 2. Extracting gradients using the mapping
+            // 3. Creating param_grad_pairs with correct mutable references
+            // 4. Calling optimizer.step(param_grad_pairs)
+            
+            // For now, the autograd integration is structured but gradients aren't applied
+            // This will be completed in the next step
+        } else {
+            // No autograd context - training will proceed without gradients
+            // This is expected for inference-only scenarios
+        }
         
         Ok(loss_value)
     }
     
     /// Validate epoch
-    async fn validate_epoch(&self, epoch: usize, data: &[CpuTensor]) -> AnyResult<()> {
+    async fn validate_epoch(&self, epoch: usize, data: &[T]) -> AnyResult<()> {
         self.monitor.start_validation(epoch).await?;
         
         let mut validation_loss = 0.0;
@@ -399,7 +460,7 @@ impl<M: Module<CpuTensor> + CheckpointableModule<CpuTensor>> Trainer<M> {
     }
     
     /// Validate single step
-    async fn validate_step(&self, batch: &[CpuTensor]) -> AnyResult<f64> {
+    async fn validate_step(&self, batch: &[T]) -> AnyResult<f64> {
         let model = self.model.lock().unwrap();
         
         // Handle batch input similar to train_step
@@ -411,7 +472,7 @@ impl<M: Module<CpuTensor> + CheckpointableModule<CpuTensor>> Trainer<M> {
         let input = if batch.len() == 1 {
             batch[0].clone()
         } else {
-            CpuTensor::stack(batch.to_vec(), 0)?
+            T::stack(batch.iter().map(|t| t.clone()).collect(), 0)?
         };
         
         // Forward pass
@@ -449,7 +510,7 @@ impl<M: Module<CpuTensor> + CheckpointableModule<CpuTensor>> Trainer<M> {
     
     /// Clip gradients to prevent exploding gradients
     /// Implements gradient norm clipping: if norm > clip_value, scale gradients proportionally
-    fn clip_gradients(&self, param_grad_pairs: &mut [(&mut CpuTensor, &CpuTensor)], clip_value: f64) -> AnyResult<()> {
+    fn clip_gradients(&self, param_grad_pairs: &mut [(&mut T, &T)], clip_value: f64) -> AnyResult<()> {
         use tensor_core::tensor::TensorReduce;
         
         // Compute total gradient norm (L2 norm across all gradients)
@@ -484,7 +545,7 @@ impl<M: Module<CpuTensor> + CheckpointableModule<CpuTensor>> Trainer<M> {
     }
     
     /// Compute gradient norm for monitoring
-    fn compute_gradient_norm(&self, param_grad_pairs: &[(&CpuTensor, &CpuTensor)]) -> AnyResult<f64> {
+    fn compute_gradient_norm(&self, param_grad_pairs: &[(&T, &T)]) -> AnyResult<f64> {
         use tensor_core::tensor::TensorReduce;
         
         let mut total_norm_squared = 0.0;

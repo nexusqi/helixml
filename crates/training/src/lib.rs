@@ -24,3 +24,9 @@ pub use checkpoint::*;
 pub use monitor::*;
 pub use data_loader::*;
 pub use validation::*;
+
+// Convenience type alias for CPU tensor trainer (backward compatibility)
+pub use backend_cpu::CpuTensor;
+
+/// Type alias for Trainer with CpuTensor (for convenience)
+pub type CpuTrainer<M> = Trainer<M, CpuTensor>;
