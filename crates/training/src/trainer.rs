@@ -328,7 +328,9 @@ where
             output.clone() // This is not correct, but placeholder for now
         };
         
-        let loss = self.loss_fn.compute(&[output], &[target])
+        // Clone target for loss computation (original needed for autograd later)
+        let target_for_loss = target.clone();
+        let loss = self.loss_fn.compute(&[output.clone()], &[target_for_loss])
             .map_err(|e| anyhow::anyhow!("Loss computation failed: {}", e))?;
         
         // Extract scalar loss value
@@ -364,9 +366,8 @@ where
             let output_id = autograd.tensor(model_output, true);
             
             // Compute loss through autograd operations
-            // Create target tensor (don't track target gradients) - clone before use
-            let target_clone = target.clone();
-            let target_id = autograd.tensor(target_clone, false);
+            // Create target tensor (don't track target gradients) - use original target
+            let target_id = autograd.tensor(target, false);
             
             // Compute loss: (output - target)^2
             let diff_id = autograd.sub(output_id, target_id)?;
