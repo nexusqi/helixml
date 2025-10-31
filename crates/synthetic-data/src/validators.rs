@@ -3,10 +3,8 @@
 //! Advanced statistical validation for synthetic data quality,
 //! distribution analysis, and statistical significance testing
 
-use tensor_core::{Tensor, Shape, DType, Device, Result};
+use tensor_core::{Tensor, Device, Result};
 use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
-use std::collections::HashMap;
-use anyhow::Context;
 
 /// Main statistical validator for synthetic data
 #[derive(Debug)]

@@ -3,11 +3,10 @@
 //! Complete training example with backward pass integration
 
 use helix_ml::*;
-use tensor_core::*;
-use tensor_core::tensor::{TensorRandom, TensorOps};
+use tensor_core::tensor::TensorRandom;
 use backend_cpu::CpuTensor;
 use nn::{Module, Linear, SiLU};
-use optim::{AdamW, Optimizer};
+use optim::AdamW;
 use training::{MSELoss, LossFunction, Reduction};
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
@@ -32,7 +31,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     
     // Create optimizer
     println!("\n⚙️  Creating optimizer...");
-    let mut optimizer = AdamW::<CpuTensor>::new(0.001, &device);
+    let optimizer = AdamW::<CpuTensor>::new(0.001, &device);
     println!("✅ AdamW optimizer ready!");
     
     // Create loss function

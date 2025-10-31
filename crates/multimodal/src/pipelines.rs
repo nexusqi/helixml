@@ -4,10 +4,7 @@
 
 use tensor_core::{Tensor, Result};
 use tensor_core::tensor::{TensorOps, TensorRandom};
-use crate::{Modality, MultimodalData};
-use crate::encoders::ModalityEncoder;
-use crate::decoders::ModalityDecoder;
-use crate::fusion::MultimodalFusion;
+use crate::MultimodalData;
 use std::marker::PhantomData;
 
 /// Multimodal processing pipeline

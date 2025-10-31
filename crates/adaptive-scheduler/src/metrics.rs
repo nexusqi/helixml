@@ -2,12 +2,10 @@
 //! 
 //! Comprehensive metrics collection and analysis for adaptive scheduling
 
-use tensor_core::{Tensor, Shape, DType, Device, Result, TensorError};
-use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
+use tensor_core::{Tensor, Device, Result};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
-use anyhow::Context;
 use serde::{Serialize, Deserialize};
 
 use super::*;

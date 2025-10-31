@@ -2,12 +2,10 @@
 //! 
 //! Task queue implementation with priority scheduling and dependency management
 
-use tensor_core::{Tensor, Shape, DType, Device, Result, TensorError};
-use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
-use std::collections::{HashMap, VecDeque, HashSet};
+use tensor_core::{Tensor, Shape, Device, Result, TensorError};
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
-use anyhow::Context;
 use priority_queue::PriorityQueue;
 use crossbeam::channel::{self, Receiver, Sender};
 

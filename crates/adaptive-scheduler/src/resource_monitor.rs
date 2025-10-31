@@ -2,12 +2,10 @@
 //! 
 //! Resource monitoring and management for multi-device scheduling
 
-use tensor_core::{Tensor, Shape, DType, Device, Result, TensorError};
-use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
+use tensor_core::{Tensor, Device, Result, TensorError};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
-use anyhow::Context;
 use dashmap::DashMap;
 
 use super::*;

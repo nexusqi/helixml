@@ -2,13 +2,10 @@
 //! 
 //! Utility functions for adaptive scheduling operations
 
-use tensor_core::{Tensor, Shape, DType, Device, Result, TensorError};
+use tensor_core::{Tensor, Device, Result, TensorError};
 use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
-use std::collections::{HashMap, VecDeque};
-use std::sync::{Arc, Mutex, RwLock};
+use std::collections::HashMap;
 use std::time::{Duration, Instant};
-use anyhow::Context;
-use serde::{Serialize, Deserialize};
 
 use super::*;
 
@@ -220,11 +217,11 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         let throughput_score = self.calculate_throughput_score(device, task)?;
         
         // Weighted combination
-        let total_score = (priority_score * 0.3 +
+        let total_score = priority_score * 0.3 +
                           suitability_score * 0.25 +
                           energy_score * 0.15 +
                           latency_score * 0.15 +
-                          throughput_score * 0.15);
+                          throughput_score * 0.15;
         
         Ok(total_score.min(1.0))
     }

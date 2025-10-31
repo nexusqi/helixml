@@ -5,8 +5,7 @@
 use tensor_core::{Tensor, Result, TensorError, Shape, DType, Device};
 use tensor_core::tensor::{TensorOps, TensorReduce, TensorRandom, TensorBroadcast, TensorActivation};
 use std::collections::{HashMap, VecDeque, HashSet};
-use std::sync::{Arc, Mutex};
-use super::{AutogradContext, DiffTensor};
+use super::AutogradContext;
 
 /// Memory pool for efficient tensor allocation
 #[derive(Debug)]

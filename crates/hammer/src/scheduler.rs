@@ -1,7 +1,6 @@
 //! ⚡ Device-Agnostic Scheduler
 
-use tensor_core::{Device, Result};
-use serde::{Serialize, Deserialize};
+use tensor_core::Device;
 
 /// Device assignment for operations
 #[derive(Debug, Clone)]

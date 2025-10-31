@@ -3,7 +3,7 @@
 //! Продвинутый пример использования улучшенного фреймворка HelixML.
 
 use helix_ml::*;
-use helix_ml::tensor::{TensorRandom, TensorOps, TensorActivation};
+use helix_ml::tensor::{TensorRandom, TensorOps};
 
 fn main() -> Result<()> {
     println!("🌀 HelixML Advanced Example");
@@ -79,10 +79,10 @@ fn main() -> Result<()> {
     
     // 7. Демонстрация оптимизаторов
     println!("\n7. Optimizers with Sign Operation:");
-    let mut lion_optimizer = Lion::<CpuTensor>::new(0.001, &device);
+    let lion_optimizer = Lion::<CpuTensor>::new(0.001, &device);
     println!("  Lion optimizer created with lr=0.001");
     
-    let mut adamw_optimizer = AdamW::<CpuTensor>::new(0.001, &device);
+    let adamw_optimizer = AdamW::<CpuTensor>::new(0.001, &device);
     println!("  AdamW optimizer created with lr=0.001");
     
     println!("\n✅ Advanced example completed successfully!");

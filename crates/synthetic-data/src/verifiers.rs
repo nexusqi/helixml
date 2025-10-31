@@ -3,10 +3,8 @@
 //! Comprehensive verification system for synthetic data quality,
 //! consistency, and statistical properties
 
-use tensor_core::{Tensor, Shape, DType, Device, Result};
+use tensor_core::{Tensor, Device, Result};
 use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
-use std::collections::HashMap;
-use anyhow::Context;
 
 // Type aliases for generated data
 pub type GeneratedSequences<T> = Vec<T>;

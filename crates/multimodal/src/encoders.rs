@@ -2,9 +2,9 @@
 //!
 //! Encoders for different data modalities
 
-use tensor_core::{Tensor, Device, Result};
+use tensor_core::{Tensor, Result};
 use tensor_core::tensor::{TensorOps, TensorRandom};
-use crate::{Modality, MultimodalData};
+use crate::Modality;
 use std::marker::PhantomData;
 
 /// Generic encoder trait for any modality

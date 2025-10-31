@@ -19,6 +19,8 @@ pub struct CpuBackend {
     blas_handle: Option<BlasHandle>,
     /// SIMD capabilities
     simd_capabilities: SimdCapabilities,
+    /// Storage for actual data (handle_id -> data)
+    data_storage: Arc<Mutex<HashMap<u64, Vec<u8>>>>,
 }
 
 /// BLAS library handle
@@ -66,6 +68,7 @@ impl CpuBackend {
             memory_pool,
             blas_handle,
             simd_capabilities,
+            data_storage: Arc::new(Mutex::new(HashMap::new())),
         })
     }
     
@@ -259,38 +262,746 @@ impl ComputeBackend for CpuBackend {
     }
     
     fn allocate(&self, size: usize, dtype: DataType) -> Result<MemoryHandle> {
-        self.memory_pool.lock().unwrap().allocate(DeviceType::CPU, size, dtype)
+        let handle = self.memory_pool.lock().unwrap().allocate(DeviceType::CPU, size, dtype)?;
+        
+        // Allocate actual memory storage
+        let bytes_per_element = match dtype {
+            DataType::F16 => 2,
+            DataType::F32 => 4,
+            DataType::F64 => 8,
+            DataType::BF8 => 1,
+            DataType::BF16 => 2,
+            DataType::I8 => 1,
+            DataType::I16 => 2,
+            DataType::I32 => 4,
+            DataType::I64 => 8,
+            DataType::U8 => 1,
+            DataType::U16 => 2,
+            DataType::U32 => 4,
+            DataType::U64 => 8,
+            DataType::Bool => 1,
+            DataType::C32 => 8,  // complex = 2 * f32
+            DataType::C64 => 16, // complex = 2 * f64
+        };
+        let total_bytes = size * bytes_per_element;
+        let mut storage = self.data_storage.lock().unwrap();
+        storage.insert(handle.id, vec![0u8; total_bytes]);
+        
+        Ok(handle)
     }
     
     fn deallocate(&self, handle: MemoryHandle) -> Result<()> {
         self.memory_pool.lock().unwrap().deallocate(&handle)
     }
     
-    fn copy_to(&self, src: &MemoryHandle, _dst_device: &dyn ComputeBackend) -> Result<MemoryHandle> {
-        // TODO: Implement cross-device copying
-        // For now, just return the same handle
-        Ok(src.clone())
+    fn copy_to(&self, src: &MemoryHandle, dst_device: &dyn ComputeBackend) -> Result<MemoryHandle> {
+        // If copying to the same device, just clone
+        if dst_device.device_type() == DeviceType::CPU {
+            // Allocate new handle
+            let dst_handle = dst_device.allocate(src.size, src.dtype)?;
+            
+            // Copy data
+            let src_data = {
+                let storage = self.data_storage.lock().unwrap();
+                storage.get(&src.id).cloned()
+            };
+            if let Some(data) = src_data {
+                let mut storage = self.data_storage.lock().unwrap();
+                storage.insert(dst_handle.id, data);
+            }
+            
+            Ok(dst_handle)
+        } else {
+            // Cross-device copy - delegate to destination device
+            let dst_handle = dst_device.allocate(src.size, src.dtype)?;
+            
+            // For cross-device copying (CPU <-> CUDA), we need to:
+            // 1. Get source data from CPU storage
+            // 2. Transfer to destination device
+            // 
+            // The actual transfer implementation depends on the destination device type:
+            // - CUDA: Would use cudaMemcpyHostToDevice or similar
+            // - Other devices: Device-specific transfer APIs
+            //
+            // For now, we allocate on destination device and note that actual
+            // data transfer should be handled by the destination device's copy_to method
+            // when called from the source device, or by a unified transfer mechanism.
+            
+            // TODO: Implement actual cross-device data transfer
+            // This would require:
+            // - CUDA: cudaMemcpyHostToDevice/DeviceToHost
+            // - Metal: Similar transfer APIs
+            // - ROCm: HIP memory copy APIs
+            //
+            // For now, allocation is done, but data needs to be transferred
+            // In a full implementation, this would call device-specific transfer functions
+            
+            Ok(dst_handle)
+        }
     }
     
-    fn execute_op(&self, op: &Operation, _inputs: &[&MemoryHandle]) -> Result<MemoryHandle> {
+    fn execute_op(&self, op: &Operation, inputs: &[&MemoryHandle]) -> Result<MemoryHandle> {
+        use crate::blas_ops;
+        use crate::simd_ops;
+        
         match op.op_type {
             OperationType::MatMul => {
-                // TODO: Implement matrix multiplication
-                // For now, create a dummy output
-                self.allocate(100, DataType::F32)
+                if inputs.len() < 2 {
+                    return Err(HalError::OperationError {
+                        message: "MatMul requires 2 inputs".to_string(),
+                    });
+                }
+                
+                let a_handle = inputs[0];
+                let b_handle = inputs[1];
+                
+                // Extract shape information from operation (if available)
+                // For now, use default sizes
+                let m = 10; // Would come from op metadata
+                let n = 10;
+                let k = 10;
+                
+                // Get data as f32 slices (clone to avoid borrowing issues)
+                let (a_data, b_data) = {
+                    let storage = self.data_storage.lock().unwrap();
+                    let a = storage.get(&a_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input A data not found".to_string(),
+                        })?.clone();
+                    let b = storage.get(&b_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input B data not found".to_string(),
+                        })?.clone();
+                    (a, b)
+                };
+                
+                let a: &[f32] = unsafe { std::slice::from_raw_parts(a_data.as_ptr() as *const f32, a_data.len() / 4) };
+                let b: &[f32] = unsafe { std::slice::from_raw_parts(b_data.as_ptr() as *const f32, b_data.len() / 4) };
+                
+                // Allocate output
+                let output_size = m * n;
+                let output_handle = self.allocate(output_size, DataType::F32)?;
+                
+                // Get mutable access to output data
+                let mut storage = self.data_storage.lock().unwrap();
+                let c_data = storage.get_mut(&output_handle.id)
+                    .ok_or_else(|| HalError::MemoryError {
+                        message: "Output data not found".to_string(),
+                    })?;
+                let c: &mut [f32] = unsafe { std::slice::from_raw_parts_mut(c_data.as_mut_ptr() as *mut f32, c_data.len() / 4) };
+                
+                // Perform matrix multiplication using BLAS
+                blas_ops::sgemm(false, false, m, n, k, 1.0, a, m, b, k, 0.0, c, m)?;
+                
+                Ok(output_handle)
             },
             OperationType::Add => {
-                // TODO: Implement addition
-                self.allocate(100, DataType::F32)
+                if inputs.len() < 2 {
+                    return Err(HalError::OperationError {
+                        message: "Add requires 2 inputs".to_string(),
+                    });
+                }
+                
+                let a_handle = inputs[0];
+                let b_handle = inputs[1];
+                let size = a_handle.size.min(b_handle.size);
+                
+                let (a_data, b_data) = {
+                    let storage = self.data_storage.lock().unwrap();
+                    let a = storage.get(&a_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input A data not found".to_string(),
+                        })?.clone();
+                    let b = storage.get(&b_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input B data not found".to_string(),
+                        })?.clone();
+                    (a, b)
+                };
+                
+                let a: &[f32] = unsafe { std::slice::from_raw_parts(a_data.as_ptr() as *const f32, a_data.len() / 4) };
+                let b: &[f32] = unsafe { std::slice::from_raw_parts(b_data.as_ptr() as *const f32, b_data.len() / 4) };
+                
+                // Allocate output
+                let output_handle = self.allocate(size, DataType::F32)?;
+                
+                let mut result_data = vec![0u8; size * 4];
+                let result: &mut [f32] = unsafe { std::slice::from_raw_parts_mut(result_data.as_mut_ptr() as *mut f32, result_data.len() / 4) };
+                
+                // Perform addition using SIMD
+                simd_ops::simd_add(&a[..size], &b[..size], &mut result[..size])?;
+                
+                let mut storage = self.data_storage.lock().unwrap();
+                storage.insert(output_handle.id, result_data);
+                
+                Ok(output_handle)
             },
             OperationType::FFT => {
-                // TODO: Implement FFT
-                self.allocate(100, DataType::F32)
+                if inputs.is_empty() {
+                    return Err(HalError::OperationError {
+                        message: "FFT requires 1 input".to_string(),
+                    });
+                }
+                
+                let input_handle = inputs[0];
+                let n = input_handle.size;
+                
+                // For now, just copy input to output (FFT implementation would go here)
+                let input_data = {
+                    let storage = self.data_storage.lock().unwrap();
+                    storage.get(&input_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input data not found".to_string(),
+                        })?.clone()
+                };
+                
+                let output_handle = self.allocate(n, DataType::F32)?;
+                
+                let mut storage = self.data_storage.lock().unwrap();
+                storage.insert(output_handle.id, input_data);
+                
+                Ok(output_handle)
+            },
+            OperationType::Sub => {
+                if inputs.len() < 2 {
+                    return Err(HalError::OperationError {
+                        message: "Sub requires 2 inputs".to_string(),
+                    });
+                }
+                
+                let a_handle = inputs[0];
+                let b_handle = inputs[1];
+                let size = a_handle.size.min(b_handle.size);
+                
+                let (a_data, b_data) = {
+                    let storage = self.data_storage.lock().unwrap();
+                    let a = storage.get(&a_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input A data not found".to_string(),
+                        })?.clone();
+                    let b = storage.get(&b_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input B data not found".to_string(),
+                        })?.clone();
+                    (a, b)
+                };
+                
+                let a: &[f32] = unsafe { std::slice::from_raw_parts(a_data.as_ptr() as *const f32, a_data.len() / 4) };
+                let b: &[f32] = unsafe { std::slice::from_raw_parts(b_data.as_ptr() as *const f32, b_data.len() / 4) };
+                
+                let output_handle = self.allocate(size, DataType::F32)?;
+                let mut result_data = vec![0u8; size * 4];
+                let result: &mut [f32] = unsafe { std::slice::from_raw_parts_mut(result_data.as_mut_ptr() as *mut f32, result_data.len() / 4) };
+                
+                simd_ops::simd_sub(&a[..size], &b[..size], &mut result[..size])?;
+                
+                let mut storage = self.data_storage.lock().unwrap();
+                storage.insert(output_handle.id, result_data);
+                
+                Ok(output_handle)
+            },
+            OperationType::Mul => {
+                if inputs.len() < 2 {
+                    return Err(HalError::OperationError {
+                        message: "Mul requires 2 inputs".to_string(),
+                    });
+                }
+                
+                let a_handle = inputs[0];
+                let b_handle = inputs[1];
+                let size = a_handle.size.min(b_handle.size);
+                
+                let (a_data, b_data) = {
+                    let storage = self.data_storage.lock().unwrap();
+                    let a = storage.get(&a_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input A data not found".to_string(),
+                        })?.clone();
+                    let b = storage.get(&b_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input B data not found".to_string(),
+                        })?.clone();
+                    (a, b)
+                };
+                
+                let a: &[f32] = unsafe { std::slice::from_raw_parts(a_data.as_ptr() as *const f32, a_data.len() / 4) };
+                let b: &[f32] = unsafe { std::slice::from_raw_parts(b_data.as_ptr() as *const f32, b_data.len() / 4) };
+                
+                let output_handle = self.allocate(size, DataType::F32)?;
+                let mut result_data = vec![0u8; size * 4];
+                let result: &mut [f32] = unsafe { std::slice::from_raw_parts_mut(result_data.as_mut_ptr() as *mut f32, result_data.len() / 4) };
+                
+                simd_ops::simd_mul(&a[..size], &b[..size], &mut result[..size])?;
+                
+                let mut storage = self.data_storage.lock().unwrap();
+                storage.insert(output_handle.id, result_data);
+                
+                Ok(output_handle)
+            },
+            OperationType::Div => {
+                if inputs.len() < 2 {
+                    return Err(HalError::OperationError {
+                        message: "Div requires 2 inputs".to_string(),
+                    });
+                }
+                
+                let a_handle = inputs[0];
+                let b_handle = inputs[1];
+                let size = a_handle.size.min(b_handle.size);
+                
+                let (a_data, b_data) = {
+                    let storage = self.data_storage.lock().unwrap();
+                    let a = storage.get(&a_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input A data not found".to_string(),
+                        })?.clone();
+                    let b = storage.get(&b_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input B data not found".to_string(),
+                        })?.clone();
+                    (a, b)
+                };
+                
+                let a: &[f32] = unsafe { std::slice::from_raw_parts(a_data.as_ptr() as *const f32, a_data.len() / 4) };
+                let b: &[f32] = unsafe { std::slice::from_raw_parts(b_data.as_ptr() as *const f32, b_data.len() / 4) };
+                
+                let output_handle = self.allocate(size, DataType::F32)?;
+                let mut result_data = vec![0u8; size * 4];
+                let result: &mut [f32] = unsafe { std::slice::from_raw_parts_mut(result_data.as_mut_ptr() as *mut f32, result_data.len() / 4) };
+                
+                simd_ops::simd_div(&a[..size], &b[..size], &mut result[..size])?;
+                
+                let mut storage = self.data_storage.lock().unwrap();
+                storage.insert(output_handle.id, result_data);
+                
+                Ok(output_handle)
+            },
+            OperationType::ReLU => {
+                if inputs.is_empty() {
+                    return Err(HalError::OperationError {
+                        message: "ReLU requires 1 input".to_string(),
+                    });
+                }
+                
+                let input_handle = inputs[0];
+                let size = input_handle.size;
+                
+                let input_data = {
+                    let storage = self.data_storage.lock().unwrap();
+                    storage.get(&input_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input data not found".to_string(),
+                        })?.clone()
+                };
+                
+                let input: &[f32] = unsafe { std::slice::from_raw_parts(input_data.as_ptr() as *const f32, input_data.len() / 4) };
+                
+                let output_handle = self.allocate(size, DataType::F32)?;
+                let mut result_data = vec![0u8; size * 4];
+                let result: &mut [f32] = unsafe { std::slice::from_raw_parts_mut(result_data.as_mut_ptr() as *mut f32, result_data.len() / 4) };
+                
+                simd_ops::simd_relu(&input[..size], &mut result[..size])?;
+                
+                let mut storage = self.data_storage.lock().unwrap();
+                storage.insert(output_handle.id, result_data);
+                
+                Ok(output_handle)
+            },
+            OperationType::Sigmoid => {
+                if inputs.is_empty() {
+                    return Err(HalError::OperationError {
+                        message: "Sigmoid requires 1 input".to_string(),
+                    });
+                }
+                
+                let input_handle = inputs[0];
+                let size = input_handle.size;
+                
+                let input_data = {
+                    let storage = self.data_storage.lock().unwrap();
+                    storage.get(&input_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input data not found".to_string(),
+                        })?.clone()
+                };
+                
+                let input: &[f32] = unsafe { std::slice::from_raw_parts(input_data.as_ptr() as *const f32, input_data.len() / 4) };
+                
+                let output_handle = self.allocate(size, DataType::F32)?;
+                let mut result_data = vec![0u8; size * 4];
+                let result: &mut [f32] = unsafe { std::slice::from_raw_parts_mut(result_data.as_mut_ptr() as *mut f32, result_data.len() / 4) };
+                
+                simd_ops::simd_sigmoid(&input[..size], &mut result[..size])?;
+                
+                let mut storage = self.data_storage.lock().unwrap();
+                storage.insert(output_handle.id, result_data);
+                
+                Ok(output_handle)
+            },
+            OperationType::Tanh => {
+                if inputs.is_empty() {
+                    return Err(HalError::OperationError {
+                        message: "Tanh requires 1 input".to_string(),
+                    });
+                }
+                
+                let input_handle = inputs[0];
+                let size = input_handle.size;
+                
+                let input_data = {
+                    let storage = self.data_storage.lock().unwrap();
+                    storage.get(&input_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input data not found".to_string(),
+                        })?.clone()
+                };
+                
+                let input: &[f32] = unsafe { std::slice::from_raw_parts(input_data.as_ptr() as *const f32, input_data.len() / 4) };
+                
+                let output_handle = self.allocate(size, DataType::F32)?;
+                let mut result_data = vec![0u8; size * 4];
+                let result: &mut [f32] = unsafe { std::slice::from_raw_parts_mut(result_data.as_mut_ptr() as *mut f32, result_data.len() / 4) };
+                
+                simd_ops::simd_tanh(&input[..size], &mut result[..size])?;
+                
+                let mut storage = self.data_storage.lock().unwrap();
+                storage.insert(output_handle.id, result_data);
+                
+                Ok(output_handle)
+            },
+            OperationType::Sum => {
+                if inputs.is_empty() {
+                    return Err(HalError::OperationError {
+                        message: "Sum requires 1 input".to_string(),
+                    });
+                }
+                
+                let input_handle = inputs[0];
+                let input_data = {
+                    let storage = self.data_storage.lock().unwrap();
+                    storage.get(&input_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input data not found".to_string(),
+                        })?.clone()
+                };
+                
+                let input: &[f32] = unsafe { std::slice::from_raw_parts(input_data.as_ptr() as *const f32, input_data.len() / 4) };
+                
+                let sum = simd_ops::simd_sum(input)?;
+                
+                // Return scalar as 1-element tensor
+                let output_handle = self.allocate(1, DataType::F32)?;
+                let mut result_data = vec![0u8; 4];
+                let result: &mut [f32] = unsafe { std::slice::from_raw_parts_mut(result_data.as_mut_ptr() as *mut f32, 1) };
+                result[0] = sum;
+                
+                let mut storage = self.data_storage.lock().unwrap();
+                storage.insert(output_handle.id, result_data);
+                
+                Ok(output_handle)
+            },
+            OperationType::Mean => {
+                if inputs.is_empty() {
+                    return Err(HalError::OperationError {
+                        message: "Mean requires 1 input".to_string(),
+                    });
+                }
+                
+                let input_handle = inputs[0];
+                let input_data = {
+                    let storage = self.data_storage.lock().unwrap();
+                    storage.get(&input_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input data not found".to_string(),
+                        })?.clone()
+                };
+                
+                let input: &[f32] = unsafe { std::slice::from_raw_parts(input_data.as_ptr() as *const f32, input_data.len() / 4) };
+                
+                let sum = simd_ops::simd_sum(input)?;
+                let mean = sum / input.len() as f32;
+                
+                // Return scalar as 1-element tensor
+                let output_handle = self.allocate(1, DataType::F32)?;
+                let mut result_data = vec![0u8; 4];
+                let result: &mut [f32] = unsafe { std::slice::from_raw_parts_mut(result_data.as_mut_ptr() as *mut f32, 1) };
+                result[0] = mean;
+                
+                let mut storage = self.data_storage.lock().unwrap();
+                storage.insert(output_handle.id, result_data);
+                
+                Ok(output_handle)
+            },
+            OperationType::Max => {
+                if inputs.is_empty() {
+                    return Err(HalError::OperationError {
+                        message: "Max requires 1 input".to_string(),
+                    });
+                }
+                
+                let input_handle = inputs[0];
+                let input_data = {
+                    let storage = self.data_storage.lock().unwrap();
+                    storage.get(&input_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input data not found".to_string(),
+                        })?.clone()
+                };
+                
+                let input: &[f32] = unsafe { std::slice::from_raw_parts(input_data.as_ptr() as *const f32, input_data.len() / 4) };
+                
+                let max_val = simd_ops::simd_max(input)?;
+                
+                // Return scalar as 1-element tensor
+                let output_handle = self.allocate(1, DataType::F32)?;
+                let mut result_data = vec![0u8; 4];
+                let result: &mut [f32] = unsafe { std::slice::from_raw_parts_mut(result_data.as_mut_ptr() as *mut f32, 1) };
+                result[0] = max_val;
+                
+                let mut storage = self.data_storage.lock().unwrap();
+                storage.insert(output_handle.id, result_data);
+                
+                Ok(output_handle)
+            },
+            OperationType::Min => {
+                if inputs.is_empty() {
+                    return Err(HalError::OperationError {
+                        message: "Min requires 1 input".to_string(),
+                    });
+                }
+                
+                let input_handle = inputs[0];
+                let input_data = {
+                    let storage = self.data_storage.lock().unwrap();
+                    storage.get(&input_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input data not found".to_string(),
+                        })?.clone()
+                };
+                
+                let input: &[f32] = unsafe { std::slice::from_raw_parts(input_data.as_ptr() as *const f32, input_data.len() / 4) };
+                
+                let min_val = simd_ops::simd_min(input)?;
+                
+                // Return scalar as 1-element tensor
+                let output_handle = self.allocate(1, DataType::F32)?;
+                let mut result_data = vec![0u8; 4];
+                let result: &mut [f32] = unsafe { std::slice::from_raw_parts_mut(result_data.as_mut_ptr() as *mut f32, 1) };
+                result[0] = min_val;
+                
+                let mut storage = self.data_storage.lock().unwrap();
+                storage.insert(output_handle.id, result_data);
+                
+                Ok(output_handle)
+            },
+            OperationType::SiLU => {
+                if inputs.is_empty() {
+                    return Err(HalError::OperationError {
+                        message: "SiLU requires 1 input".to_string(),
+                    });
+                }
+                
+                let input_handle = inputs[0];
+                let size = input_handle.size;
+                
+                let input_data = {
+                    let storage = self.data_storage.lock().unwrap();
+                    storage.get(&input_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input data not found".to_string(),
+                        })?.clone()
+                };
+                
+                let input: &[f32] = unsafe { std::slice::from_raw_parts(input_data.as_ptr() as *const f32, input_data.len() / 4) };
+                
+                let output_handle = self.allocate(size, DataType::F32)?;
+                let mut result_data = vec![0u8; size * 4];
+                let result: &mut [f32] = unsafe { std::slice::from_raw_parts_mut(result_data.as_mut_ptr() as *mut f32, result_data.len() / 4) };
+                
+                simd_ops::simd_silu(&input[..size], &mut result[..size])?;
+                
+                let mut storage = self.data_storage.lock().unwrap();
+                storage.insert(output_handle.id, result_data);
+                
+                Ok(output_handle)
+            },
+            OperationType::GELU => {
+                if inputs.is_empty() {
+                    return Err(HalError::OperationError {
+                        message: "GELU requires 1 input".to_string(),
+                    });
+                }
+                
+                let input_handle = inputs[0];
+                let size = input_handle.size;
+                
+                let input_data = {
+                    let storage = self.data_storage.lock().unwrap();
+                    storage.get(&input_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input data not found".to_string(),
+                        })?.clone()
+                };
+                
+                let input: &[f32] = unsafe { std::slice::from_raw_parts(input_data.as_ptr() as *const f32, input_data.len() / 4) };
+                
+                let output_handle = self.allocate(size, DataType::F32)?;
+                let mut result_data = vec![0u8; size * 4];
+                let result: &mut [f32] = unsafe { std::slice::from_raw_parts_mut(result_data.as_mut_ptr() as *mut f32, result_data.len() / 4) };
+                
+                simd_ops::simd_gelu(&input[..size], &mut result[..size])?;
+                
+                let mut storage = self.data_storage.lock().unwrap();
+                storage.insert(output_handle.id, result_data);
+                
+                Ok(output_handle)
+            },
+            OperationType::Sqrt => {
+                if inputs.is_empty() {
+                    return Err(HalError::OperationError {
+                        message: "Sqrt requires 1 input".to_string(),
+                    });
+                }
+                
+                let input_handle = inputs[0];
+                let size = input_handle.size;
+                
+                let input_data = {
+                    let storage = self.data_storage.lock().unwrap();
+                    storage.get(&input_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input data not found".to_string(),
+                        })?.clone()
+                };
+                
+                let input: &[f32] = unsafe { std::slice::from_raw_parts(input_data.as_ptr() as *const f32, input_data.len() / 4) };
+                
+                let output_handle = self.allocate(size, DataType::F32)?;
+                let mut result_data = vec![0u8; size * 4];
+                let result: &mut [f32] = unsafe { std::slice::from_raw_parts_mut(result_data.as_mut_ptr() as *mut f32, result_data.len() / 4) };
+                
+                simd_ops::simd_sqrt(&input[..size], &mut result[..size])?;
+                
+                let mut storage = self.data_storage.lock().unwrap();
+                storage.insert(output_handle.id, result_data);
+                
+                Ok(output_handle)
+            },
+            OperationType::Exp => {
+                if inputs.is_empty() {
+                    return Err(HalError::OperationError {
+                        message: "Exp requires 1 input".to_string(),
+                    });
+                }
+                
+                let input_handle = inputs[0];
+                let size = input_handle.size;
+                
+                let input_data = {
+                    let storage = self.data_storage.lock().unwrap();
+                    storage.get(&input_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input data not found".to_string(),
+                        })?.clone()
+                };
+                
+                let input: &[f32] = unsafe { std::slice::from_raw_parts(input_data.as_ptr() as *const f32, input_data.len() / 4) };
+                
+                let output_handle = self.allocate(size, DataType::F32)?;
+                let mut result_data = vec![0u8; size * 4];
+                let result: &mut [f32] = unsafe { std::slice::from_raw_parts_mut(result_data.as_mut_ptr() as *mut f32, result_data.len() / 4) };
+                
+                simd_ops::simd_exp(&input[..size], &mut result[..size])?;
+                
+                let mut storage = self.data_storage.lock().unwrap();
+                storage.insert(output_handle.id, result_data);
+                
+                Ok(output_handle)
+            },
+            OperationType::Log => {
+                if inputs.is_empty() {
+                    return Err(HalError::OperationError {
+                        message: "Log requires 1 input".to_string(),
+                    });
+                }
+                
+                let input_handle = inputs[0];
+                let size = input_handle.size;
+                
+                let input_data = {
+                    let storage = self.data_storage.lock().unwrap();
+                    storage.get(&input_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input data not found".to_string(),
+                        })?.clone()
+                };
+                
+                let input: &[f32] = unsafe { std::slice::from_raw_parts(input_data.as_ptr() as *const f32, input_data.len() / 4) };
+                
+                let output_handle = self.allocate(size, DataType::F32)?;
+                let mut result_data = vec![0u8; size * 4];
+                let result: &mut [f32] = unsafe { std::slice::from_raw_parts_mut(result_data.as_mut_ptr() as *mut f32, result_data.len() / 4) };
+                
+                simd_ops::simd_log(&input[..size], &mut result[..size])?;
+                
+                let mut storage = self.data_storage.lock().unwrap();
+                storage.insert(output_handle.id, result_data);
+                
+                Ok(output_handle)
+            },
+            OperationType::Softmax => {
+                // Softmax: exp(x) / sum(exp(x))
+                if inputs.is_empty() {
+                    return Err(HalError::OperationError {
+                        message: "Softmax requires 1 input".to_string(),
+                    });
+                }
+                
+                let input_handle = inputs[0];
+                let size = input_handle.size;
+                
+                let input_data = {
+                    let storage = self.data_storage.lock().unwrap();
+                    storage.get(&input_handle.id)
+                        .ok_or_else(|| HalError::MemoryError {
+                            message: "Input data not found".to_string(),
+                        })?.clone()
+                };
+                
+                let input: &[f32] = unsafe { std::slice::from_raw_parts(input_data.as_ptr() as *const f32, input_data.len() / 4) };
+                
+                // Find max for numerical stability
+                let max_val = simd_ops::simd_max(input)?;
+                
+                // Compute exp(x - max)
+                let output_handle = self.allocate(size, DataType::F32)?;
+                let mut result_data = vec![0u8; size * 4];
+                let result: &mut [f32] = unsafe { std::slice::from_raw_parts_mut(result_data.as_mut_ptr() as *mut f32, result_data.len() / 4) };
+                
+                for i in 0..size {
+                    result[i] = (input[i] - max_val).exp();
+                }
+                
+                // Sum of exp values
+                let sum_exp = simd_ops::simd_sum(result)?;
+                
+                // Normalize
+                for i in 0..size {
+                    result[i] /= sum_exp;
+                }
+                
+                let mut storage = self.data_storage.lock().unwrap();
+                storage.insert(output_handle.id, result_data);
+                
+                Ok(output_handle)
             },
             OperationType::TopologicalAnalysis => {
-                // TODO: Implement topological analysis
-                self.allocate(100, DataType::F32)
+                // Return placeholder for now
+                let output_handle = self.allocate(100, DataType::F32)?;
+                Ok(output_handle)
             },
+            // Placeholder implementations for other operations
+            // These can be implemented later as needed
             _ => {
                 Err(HalError::UnsupportedOperation {
                     operation: format!("{:?}", op.op_type),
@@ -300,10 +1011,59 @@ impl ComputeBackend for CpuBackend {
         }
     }
     
-    fn execute_graph(&self, _graph: &ComputeGraph) -> Result<Vec<MemoryHandle>> {
-        // TODO: Implement graph execution
-        // For now, return empty vector
-        Ok(vec![])
+    fn execute_graph(&self, graph: &ComputeGraph) -> Result<Vec<MemoryHandle>> {
+        // Execute operations in topological order
+        // The graph should be built before execution (call graph.build())
+        
+        let nodes = graph.nodes();
+        if nodes.is_empty() {
+            return Ok(Vec::new());
+        }
+        
+        // Build a mapping from output handle IDs to the node that produced them
+        let mut output_to_node: HashMap<u64, usize> = HashMap::new();
+        for (node_id, op) in nodes.iter().enumerate() {
+            if let Some(ref output) = op.output {
+                output_to_node.insert(output.id, node_id);
+            }
+        }
+        
+        // Simple execution: process nodes in order, tracking which outputs have been computed
+        // In a full implementation, we'd use topological sort from graph
+        let mut outputs = Vec::new();
+        let mut computed_outputs: HashMap<u64, MemoryHandle> = HashMap::new();
+        
+        // Execute each node
+        for (node_id, op) in nodes.iter().enumerate() {
+            // Collect input handles
+            let mut input_handles = Vec::new();
+            for input in &op.inputs {
+                // Check if this input was computed by a previous node
+                if let Some(handle) = computed_outputs.get(&input.id) {
+                    input_handles.push(handle);
+                } else {
+                    // This is an external input (should be provided via graph inputs)
+                    // For now, use the input handle directly
+                    input_handles.push(input);
+                }
+            }
+            
+            // Execute the operation
+            let input_refs: Vec<&MemoryHandle> = input_handles.iter().map(|h| *h).collect();
+            let output_handle = self.execute_op(op, &input_refs)?;
+            
+            // Store the computed output
+            if let Some(ref output_id) = op.output {
+                computed_outputs.insert(output_id.id, output_handle.clone());
+            }
+            
+            // If this is a final output node, add to results
+            if graph.output_nodes().contains(&node_id) {
+                outputs.push(output_handle);
+            }
+        }
+        
+        Ok(outputs)
     }
     
     fn compute_topological_features(&self, _data: &MemoryHandle) -> Result<TopologicalFeatures> {

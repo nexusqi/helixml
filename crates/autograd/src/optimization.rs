@@ -2,10 +2,10 @@
 //! 
 //! Advanced gradient optimization techniques for efficient training
 
-use tensor_core::{Tensor, Result, TensorError, Shape, DType, Device};
+use tensor_core::{Tensor, Result, Shape};
 use tensor_core::tensor::{TensorOps, TensorReduce, TensorStats, TensorBroadcast};
-use std::collections::{HashMap, VecDeque};
-use super::{AutogradContext, DiffTensor};
+use std::collections::HashMap;
+use super::AutogradContext;
 
 /// Gradient optimization strategies
 #[derive(Debug, Clone)]

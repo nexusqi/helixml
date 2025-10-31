@@ -6,11 +6,10 @@
 use anyhow::Result;
 use tensor_core::{Tensor, Shape, DType, Device};
 use std::collections::HashMap;
-use tokio::time::{Duration, Instant};
-use log::{info, warn, error};
+use tokio::time::Instant;
+use log::{info, warn};
 
-use crate::data_types::*;
-use crate::{Modality, MultimodalData, ProcessedData, FeatureVector};
+use crate::{Modality, ProcessedData, FeatureVector};
 
 /// Intelligent processor that automatically detects and handles any data type
 pub struct IntelligentProcessor<T: Tensor> {

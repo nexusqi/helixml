@@ -3,11 +3,8 @@
 //! Advanced synthetic data generation with comprehensive verification,
 //! statistical validation, and multi-modal data support for HelixML
 
-use tensor_core::{Tensor, Shape, DType, Device, Result};
+use tensor_core::{Tensor, Device, Result};
 use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use anyhow::Context;
 
 pub mod generators;
 pub mod verifiers;

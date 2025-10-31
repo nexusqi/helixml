@@ -39,8 +39,7 @@ members = [
            "examples/hammer_example",
            "examples/training_example",
            "examples/adaptive_scheduler_example",
-           "benches"
-, "test_helix_project"]
+           "benches"]
 
 
 [workspace.package]

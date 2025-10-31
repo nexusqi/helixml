@@ -2,13 +2,12 @@
 //! 
 //! Advanced optimization algorithms for adaptive scheduling
 
-use tensor_core::{Tensor, Shape, DType, Device, Result, TensorError};
-use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
+use tensor_core::{Tensor, Shape, Device, Result, TensorError};
+use tensor_core::tensor::TensorOps;
 use std::collections::{HashMap, VecDeque};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
-use anyhow::Context;
-use rand::{Rng, thread_rng};
+use rand::thread_rng;
 use rand::seq::SliceRandom;
 
 use super::*;
@@ -192,7 +191,7 @@ pub struct OptimizationEngineResult {
 
 impl OptimizationEngine {
     pub fn new(strategy: OptimizationStrategy) -> Result<Self> {
-        let mut engine = Self {
+        let engine = Self {
             strategy,
             optimization_history: Arc::new(RwLock::new(VecDeque::new())),
             performance_models: Arc::new(RwLock::new(HashMap::new())),

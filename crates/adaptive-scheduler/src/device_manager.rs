@@ -2,12 +2,10 @@
 //! 
 //! Device management and orchestration for multi-device scheduling
 
-use tensor_core::{Tensor, Shape, DType, Device, Result, TensorError};
-use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
-use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex, RwLock};
+use tensor_core::{Tensor, Device, Result, TensorError};
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
-use anyhow::Context;
 
 use super::*;
 

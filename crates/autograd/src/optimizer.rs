@@ -2,8 +2,8 @@
 //! 
 //! Integration between autograd and optimizers for efficient training
 
-use tensor_core::{Tensor, Result, TensorError, Shape, DType, Device};
-use tensor_core::tensor::{TensorOps, TensorReduce, TensorRandom};
+use tensor_core::{Tensor, Result};
+use tensor_core::tensor::{TensorOps, TensorRandom};
 use std::collections::HashMap;
 use super::{AutogradContext, DiffTensor};
 

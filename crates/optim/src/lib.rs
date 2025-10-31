@@ -2,7 +2,7 @@
 //! 
 //! Optimization algorithms for SSM/Hyena architectures.
 
-use tensor_core::{Tensor, Device, Result, TensorError, Shape, DType};
+use tensor_core::{Tensor, Device, Result, TensorError, DType};
 use tensor_core::tensor::{TensorOps, TensorRandom};
 use std::collections::HashMap;
 

@@ -2,12 +2,11 @@
 //! 
 //! Load balancing strategies for multi-device task distribution
 
-use tensor_core::{Tensor, Shape, DType, Device, Result, TensorError};
-use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
+use tensor_core::{Device, Result, TensorError};
+use tensor_core::tensor::{TensorOps, TensorReduce};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
-use anyhow::Context;
 use rand::{Rng, thread_rng};
 use rand::seq::SliceRandom;
 
@@ -329,8 +328,8 @@ impl LoadBalancer {
                 let load_score = 1.0 - load;
                 
                 // Weighted combination
-                let total_score = (throughput_score * 0.3 + latency_score * 0.2 + 
-                                 efficiency_score * 0.2 + success_score * 0.2 + load_score * 0.1);
+                let total_score = throughput_score * 0.3 + latency_score * 0.2 + 
+                                 efficiency_score * 0.2 + success_score * 0.2 + load_score * 0.1;
                 
                 if total_score > best_score {
                     best_score = total_score;

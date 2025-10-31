@@ -3,11 +3,10 @@
 //! Comprehensive benchmarking system for synthetic data generation,
 //! verification, and validation performance
 
-use tensor_core::{Tensor, Shape, DType, Device, Result};
+use tensor_core::{Tensor, Shape, Device, Result};
 use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
 use std::time::{Duration, Instant};
 use std::collections::HashMap;
-use anyhow::Context;
 
 /// Benchmark suite for synthetic data generation
 #[derive(Debug)]

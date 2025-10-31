@@ -1,6 +1,6 @@
 //! 📊 Universal Compute Graph
 
-use tensor_core::{Tensor, Result};
+use tensor_core::Tensor;
 use serde::{Serialize, Deserialize};
 
 /// Architecture types

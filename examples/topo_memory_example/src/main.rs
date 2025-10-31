@@ -3,9 +3,9 @@
 //! Demonstration of topological memory and U/I/S link system.
 
 use backend_cpu::CpuTensor;
-use tensor_core::{Device, DType, Shape, Result, Tensor};
-use tensor_core::tensor::{TensorRandom, TensorOps};
-use topo_memory::{TopologicalMemory, LinkManager, StabilityParams, LinkState};
+use tensor_core::{Device, Shape, Result, Tensor};
+use tensor_core::tensor::TensorRandom;
+use topo_memory::{TopologicalMemory, LinkManager, StabilityParams};
 use meanings::bootstrap::{BootstrapCfg, bootstrap_span};
 
 fn main() -> Result<()> {
@@ -50,7 +50,7 @@ fn main() -> Result<()> {
     
     // Test U/I/S link system
     println!("\nTesting U/I/S link system...");
-    let mut link_manager = LinkManager::new();
+    let link_manager = LinkManager::new();
     
     // Add several U-links
     for i in 0..5 {

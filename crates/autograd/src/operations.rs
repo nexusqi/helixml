@@ -2,7 +2,7 @@
 //! 
 //! High-level operations with automatic differentiation support
 
-use tensor_core::{Tensor, Result, TensorError, Shape};
+use tensor_core::{Tensor, Result};
 use tensor_core::tensor::{TensorOps, TensorReduce, TensorStats, TensorBroadcast, TensorActivation, TensorRandom};
 use super::{AutogradContext, DiffTensor};
 use super::backward::{BackwardPass, Operation, ComputationNode};

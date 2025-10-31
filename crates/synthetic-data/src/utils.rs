@@ -8,8 +8,6 @@ use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedP
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufWriter, Write};
-use serde::{Serialize, Deserialize};
-use anyhow::Context;
 
 /// Utility functions for synthetic data operations
 #[derive(Debug)]
@@ -43,7 +41,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     /// Load synthetic data from file
     pub fn load_data(&self, filename: &str) -> Result<Vec<T>> {
         let file = File::open(filename).map_err(|e| TensorError::BackendError { message: format!("IO error: {}", e) })?;
-        let mut reader = std::io::BufReader::new(file);
+        let reader = std::io::BufReader::new(file);
         let mut data = Vec::new();
         
         // Simplified loading - in practice, you'd implement proper deserialization

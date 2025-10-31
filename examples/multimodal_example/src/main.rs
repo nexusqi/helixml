@@ -3,10 +3,7 @@
 //! Demonstration of intelligent multimodal data processing with automatic
 //! device selection and resource optimization.
 
-use multimodal::{
-    MultimodalProcessor, Modality, MultimodalData, DataMetadata,
-    processors::{IntelligentProcessor, OptimizationStrategy},
-};
+use multimodal::processors::IntelligentProcessor;
 use tensor_core::Device;
 use backend_cpu::CpuTensor;
 use anyhow::Result;

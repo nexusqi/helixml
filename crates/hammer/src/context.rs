@@ -1,6 +1,6 @@
 //! Hammer Context - Core computation context
 
-use tensor_core::{Tensor, Result};
+use tensor_core::Tensor;
 use std::collections::HashMap;
 
 /// Hammer tensor with gradient tracking

@@ -6,16 +6,20 @@ use tensor_core::tensor::Tensor;
 use nn::{Module, CheckpointableModule};
 use crate::metrics::Metrics;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use tokio::fs;
+use tokio::io::{AsyncWriteExt, AsyncReadExt};
+use serde::{Serialize, Deserialize};
 use anyhow::Result as AnyResult;
 
 /// Checkpoint manager
 pub struct CheckpointManager<T: Tensor> {
     _phantom: std::marker::PhantomData<T>,
     /// Checkpoint directory
-    checkpoint_dir: String,
+    checkpoint_dir: PathBuf,
     /// Checkpoint metadata
-    metadata: HashMap<String, CheckpointMetadata>,
+    metadata: Arc<std::sync::Mutex<HashMap<String, CheckpointMetadata>>>,
 }
 
 /// Checkpoint metadata
@@ -40,16 +44,21 @@ pub struct CheckpointMetadata {
 impl<T: Tensor> CheckpointManager<T> {
     /// Create new checkpoint manager
     pub fn new() -> AnyResult<Self> {
+        let checkpoint_dir = PathBuf::from("checkpoints");
+        // Create directory if it doesn't exist
+        std::fs::create_dir_all(&checkpoint_dir)?;
+        
         Ok(Self {
             _phantom: std::marker::PhantomData,
-            checkpoint_dir: "checkpoints".to_string(),
-            metadata: HashMap::new(),
+            checkpoint_dir,
+            metadata: Arc::new(std::sync::Mutex::new(HashMap::new())),
         })
     }
     
     /// Set checkpoint directory
     pub fn set_checkpoint_dir(&mut self, dir: &str) {
-        self.checkpoint_dir = dir.to_string();
+        self.checkpoint_dir = PathBuf::from(dir);
+        std::fs::create_dir_all(&self.checkpoint_dir).ok();
     }
     
     /// Save checkpoint
@@ -59,7 +68,15 @@ impl<T: Tensor> CheckpointManager<T> {
         model: &M,
         metrics: &Metrics,
     ) -> AnyResult<()> {
-        let checkpoint_path = format!("{}/checkpoint_epoch_{}.pt", self.checkpoint_dir, epoch);
+        let checkpoint_path = self.checkpoint_dir.join(format!("checkpoint_epoch_{}.pt", epoch));
+        
+        // Get model state using checkpoint method
+        let model_params = model.checkpoint()
+            .map_err(|e| anyhow::anyhow!("Failed to get model checkpoint: {}", e))?;
+        
+        // Convert model parameters to serializable format
+        // For now, we'll serialize the checkpoint directly
+        // In a production system, we'd want to serialize tensor data more efficiently
         
         // Create checkpoint data
         let checkpoint_data = CheckpointData {
@@ -69,15 +86,15 @@ impl<T: Tensor> CheckpointManager<T> {
             validation_loss: metrics.validation_loss,
             learning_rate: metrics.learning_rate,
             timestamp: std::time::SystemTime::now(),
-            model_state: HashMap::new(), // TODO: Implement get_state_dict
+            model_params_count: model_params.len(),
             metrics: metrics.clone(),
         };
         
-        // Save to file
-        self.save_checkpoint_to_file(&checkpoint_path, &checkpoint_data).await?;
+        // Save to file (serialize checkpoint data and model parameters)
+        self.save_checkpoint_to_file(&checkpoint_path, &checkpoint_data, &model_params).await?;
         
         // Update metadata
-        let mut metadata = self.metadata.clone();
+        let mut metadata = self.metadata.lock().unwrap();
         metadata.insert(
             epoch.to_string(),
             CheckpointMetadata {
@@ -87,7 +104,7 @@ impl<T: Tensor> CheckpointManager<T> {
                 validation_loss: metrics.validation_loss,
                 learning_rate: metrics.learning_rate,
                 timestamp: std::time::SystemTime::now(),
-                file_path: checkpoint_path,
+                file_path: checkpoint_path.to_string_lossy().to_string(),
             },
         );
         
@@ -101,13 +118,14 @@ impl<T: Tensor> CheckpointManager<T> {
         model: &mut M,
         metrics: &mut Metrics,
     ) -> AnyResult<()> {
-        let checkpoint_path = format!("{}/checkpoint_epoch_{}.pt", self.checkpoint_dir, epoch);
+        let checkpoint_path = self.checkpoint_dir.join(format!("checkpoint_epoch_{}.pt", epoch));
         
         // Load from file
-        let checkpoint_data = self.load_checkpoint_from_file(&checkpoint_path).await?;
+        let (checkpoint_data, model_params) = self.load_checkpoint_from_file(&checkpoint_path).await?;
         
         // Restore model state
-        // TODO: Implement load_state_dict
+        model.restore(model_params)
+            .map_err(|e| anyhow::anyhow!("Failed to restore model from checkpoint: {}", e))?;
         
         // Restore metrics
         *metrics = checkpoint_data.metrics;
@@ -118,48 +136,93 @@ impl<T: Tensor> CheckpointManager<T> {
     /// Save checkpoint to file
     async fn save_checkpoint_to_file(
         &self,
-        path: &str,
+        path: &Path,
         data: &CheckpointData,
+        model_params: &[T],
     ) -> AnyResult<()> {
-        // TODO: Implement actual file saving
-        // This would involve serializing the checkpoint data
+        // Create parent directory if it doesn't exist
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).await?;
+        }
+        
+        // Serialize checkpoint metadata to JSON
+        let metadata_json = serde_json::to_string(data)?;
+        
+        // For model parameters, we'll serialize them using bincode for efficiency
+        // Since tensors implement Serialize/Deserialize, we can use bincode
+        let params_bytes = bincode::serialize(model_params)
+            .map_err(|e| anyhow::anyhow!("Failed to serialize model parameters: {}", e))?;
+        
+        // Create a combined checkpoint file:
+        // - First 4 bytes: length of metadata JSON (u32)
+        // - Next N bytes: metadata JSON
+        // - Rest: serialized model parameters
+        
+        let mut file = fs::File::create(path).await?;
+        
+        // Write metadata length
+        let metadata_len = metadata_json.len() as u32;
+        file.write_u32(metadata_len).await?;
+        
+        // Write metadata JSON
+        file.write_all(metadata_json.as_bytes()).await?;
+        
+        // Write model parameters
+        file.write_all(&params_bytes).await?;
+        
+        file.sync_all().await?;
+        
         Ok(())
     }
     
     /// Load checkpoint from file
-    async fn load_checkpoint_from_file(&self, path: &str) -> AnyResult<CheckpointData> {
-        // TODO: Implement actual file loading
-        // This would involve deserializing the checkpoint data
-        Ok(CheckpointData {
-            epoch: 0,
-            step: 0,
-            training_loss: 0.0,
-            validation_loss: 0.0,
-            learning_rate: 0.0,
-            timestamp: std::time::SystemTime::now(),
-            model_state: HashMap::new(),
-            metrics: Metrics::new(),
-        })
+    async fn load_checkpoint_from_file(&self, path: &Path) -> AnyResult<(CheckpointData, Vec<T>)> {
+        let mut file = fs::File::open(path).await?;
+        
+        // Read metadata length
+        let metadata_len = file.read_u32().await? as usize;
+        
+        // Read metadata JSON
+        let mut metadata_buf = vec![0u8; metadata_len];
+        file.read_exact(&mut metadata_buf).await?;
+        let metadata_json = String::from_utf8(metadata_buf)?;
+        let checkpoint_data: CheckpointData = serde_json::from_str(&metadata_json)?;
+        
+        // Read remaining bytes (model parameters)
+        let mut params_buf = Vec::new();
+        file.read_to_end(&mut params_buf).await?;
+        let model_params: Vec<T> = bincode::deserialize(&params_buf)
+            .map_err(|e| anyhow::anyhow!("Failed to deserialize model parameters: {}", e))?;
+        
+        Ok((checkpoint_data, model_params))
     }
     
     /// List available checkpoints
     pub fn list_checkpoints(&self) -> Vec<usize> {
-        self.metadata.keys()
+        let metadata = self.metadata.lock().unwrap();
+        metadata.keys()
             .filter_map(|k| k.parse::<usize>().ok())
             .collect()
     }
     
     /// Get checkpoint metadata
-    pub fn get_checkpoint_metadata(&self, epoch: usize) -> Option<&CheckpointMetadata> {
-        self.metadata.get(&epoch.to_string())
+    pub fn get_checkpoint_metadata(&self, epoch: usize) -> Option<CheckpointMetadata> {
+        let metadata = self.metadata.lock().unwrap();
+        metadata.get(&epoch.to_string()).cloned()
     }
     
     /// Delete checkpoint
     pub async fn delete_checkpoint(&self, epoch: usize) -> AnyResult<()> {
-        let checkpoint_path = format!("{}/checkpoint_epoch_{}.pt", self.checkpoint_dir, epoch);
+        let checkpoint_path = self.checkpoint_dir.join(format!("checkpoint_epoch_{}.pt", epoch));
         
-        // TODO: Delete file
-        // std::fs::remove_file(&checkpoint_path)?;
+        // Delete file
+        if checkpoint_path.exists() {
+            fs::remove_file(&checkpoint_path).await?;
+        }
+        
+        // Remove from metadata
+        let mut metadata = self.metadata.lock().unwrap();
+        metadata.remove(&epoch.to_string());
         
         Ok(())
     }
@@ -180,8 +243,8 @@ impl<T: Tensor> CheckpointManager<T> {
     }
 }
 
-/// Checkpoint data
-#[derive(Debug, Clone)]
+/// Checkpoint data (metadata only - model params are stored separately)
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CheckpointData {
     /// Epoch
     pub epoch: usize,
@@ -194,11 +257,34 @@ pub struct CheckpointData {
     /// Learning rate
     pub learning_rate: f64,
     /// Timestamp
+    #[serde(with = "serde_system_time")]
     pub timestamp: std::time::SystemTime,
-    /// Model state
-    pub model_state: HashMap<String, Vec<f64>>,
+    /// Number of model parameters (for validation)
+    pub model_params_count: usize,
     /// Metrics
     pub metrics: Metrics,
+}
+
+// Helper module for SystemTime serialization
+mod serde_system_time {
+    use serde::{Serialize, Serializer, Deserialize, Deserializer};
+    use std::time::{SystemTime, UNIX_EPOCH};
+    
+    pub fn serialize<S>(time: &SystemTime, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let duration = time.duration_since(UNIX_EPOCH).unwrap();
+        duration.as_secs().serialize(serializer)
+    }
+    
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<SystemTime, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let secs = u64::deserialize(deserializer)?;
+        Ok(UNIX_EPOCH + std::time::Duration::from_secs(secs))
+    }
 }
 
 #[cfg(test)]
@@ -209,7 +295,7 @@ mod tests {
     #[test]
     fn test_checkpoint_manager_creation() {
         let manager: CheckpointManager<CpuTensor> = CheckpointManager::new().unwrap();
-        assert_eq!(manager.checkpoint_dir, "checkpoints");
+        assert_eq!(manager.checkpoint_dir, std::path::PathBuf::from("checkpoints"));
     }
     
     #[test]

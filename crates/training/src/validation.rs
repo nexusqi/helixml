@@ -2,7 +2,7 @@
 //! 
 //! Advanced validation system for model evaluation.
 
-use crate::metrics::{Metrics, Accuracy, Precision, Recall, F1Score};
+use crate::metrics::{Accuracy, Precision, Recall, F1Score};
 use backend_cpu::CpuTensor;
 use tensor_core::tensor::TensorOps;
 use std::collections::HashMap;

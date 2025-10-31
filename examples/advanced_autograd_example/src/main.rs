@@ -3,12 +3,9 @@
 //! Example demonstrating advanced autograd features for training large models
 
 use tensor_core::*;
-use tensor_core::tensor::{TensorOps, TensorRandom, TensorReduce, TensorStats};
+use tensor_core::tensor::{TensorOps, TensorRandom};
 use backend_cpu::CpuTensor;
 use autograd::*;
-use autograd::advanced::*;
-use autograd::optimizer::*;
-use autograd::memory::*;
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     println!("🌀 HelixML Advanced Autograd Example");

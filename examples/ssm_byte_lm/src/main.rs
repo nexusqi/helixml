@@ -5,10 +5,10 @@
 
 use std::env;
 use tensor_core::*;
-use meanings::bootstrap::{BootstrapCfg, BatchStats, bootstrap_span, observe_batch, maybe_replay, ReplayReport};
-use nn::{S4Block, MambaBlock, Linear, SiLU, Module};
+use meanings::bootstrap::{BootstrapCfg, BatchStats, bootstrap_span, observe_batch, maybe_replay};
+use nn::{S4Block, Linear, Module};
 use topo_memory::*;
-use tensor_core::tensor::{TensorRandom, TensorOps};
+use tensor_core::tensor::TensorRandom;
 use backend_cpu::CpuTensor;
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
@@ -393,7 +393,7 @@ fn run_meaning_demo() -> std::result::Result<(), Box<dyn std::error::Error>> {
 }
 
 fn generate_random_bytes(length: usize) -> Vec<u8> {
-    use std::collections::HashMap;
+    
     
     // Create a more realistic byte distribution
     let mut bytes = Vec::with_capacity(length);

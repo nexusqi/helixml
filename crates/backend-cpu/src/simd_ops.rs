@@ -368,6 +368,177 @@ pub fn simd_tanh(a: &[f32], result: &mut [f32]) -> SimdResult {
     Ok(())
 }
 
+/// SIMD-optimized SiLU (Swish) activation: x * sigmoid(x)
+pub fn simd_silu(a: &[f32], result: &mut [f32]) -> SimdResult {
+    if a.len() != result.len() {
+        return Err(HalError::OperationError {
+            message: "Vector lengths don't match".to_string(),
+        });
+    }
+    
+    let len = a.len();
+    let mut i = 0;
+    
+    // Process 4 elements at a time
+    while i + 4 <= len {
+        let sig0 = 1.0 / (1.0 + (-a[i]).exp());
+        let sig1 = 1.0 / (1.0 + (-a[i + 1]).exp());
+        let sig2 = 1.0 / (1.0 + (-a[i + 2]).exp());
+        let sig3 = 1.0 / (1.0 + (-a[i + 3]).exp());
+        result[i] = a[i] * sig0;
+        result[i + 1] = a[i + 1] * sig1;
+        result[i + 2] = a[i + 2] * sig2;
+        result[i + 3] = a[i + 3] * sig3;
+        i += 4;
+    }
+    
+    // Handle remaining elements
+    while i < len {
+        let sig = 1.0 / (1.0 + (-a[i]).exp());
+        result[i] = a[i] * sig;
+        i += 1;
+    }
+    
+    Ok(())
+}
+
+/// SIMD-optimized GELU activation: x * 0.5 * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x^3)))
+pub fn simd_gelu(a: &[f32], result: &mut [f32]) -> SimdResult {
+    if a.len() != result.len() {
+        return Err(HalError::OperationError {
+            message: "Vector lengths don't match".to_string(),
+        });
+    }
+    
+    const SQRT_2_OVER_PI: f32 = 0.7978845608;
+    const GELU_COEF: f32 = 0.044715;
+    
+    let len = a.len();
+    let mut i = 0;
+    
+    // Process 4 elements at a time
+    while i + 4 <= len {
+        let x0 = a[i];
+        let x1 = a[i + 1];
+        let x2 = a[i + 2];
+        let x3 = a[i + 3];
+        
+        let x3_0 = x0 * x0 * x0;
+        let x3_1 = x1 * x1 * x1;
+        let x3_2 = x2 * x2 * x2;
+        let x3_3 = x3 * x3 * x3;
+        
+        let arg0 = SQRT_2_OVER_PI * (x0 + GELU_COEF * x3_0);
+        let arg1 = SQRT_2_OVER_PI * (x1 + GELU_COEF * x3_1);
+        let arg2 = SQRT_2_OVER_PI * (x2 + GELU_COEF * x3_2);
+        let arg3 = SQRT_2_OVER_PI * (x3 + GELU_COEF * x3_3);
+        
+        result[i] = 0.5 * x0 * (1.0 + arg0.tanh());
+        result[i + 1] = 0.5 * x1 * (1.0 + arg1.tanh());
+        result[i + 2] = 0.5 * x2 * (1.0 + arg2.tanh());
+        result[i + 3] = 0.5 * x3 * (1.0 + arg3.tanh());
+        i += 4;
+    }
+    
+    // Handle remaining elements
+    while i < len {
+        let x = a[i];
+        let x3 = x * x * x;
+        let arg = SQRT_2_OVER_PI * (x + GELU_COEF * x3);
+        result[i] = 0.5 * x * (1.0 + arg.tanh());
+        i += 1;
+    }
+    
+    Ok(())
+}
+
+/// SIMD-optimized element-wise sqrt
+pub fn simd_sqrt(a: &[f32], result: &mut [f32]) -> SimdResult {
+    if a.len() != result.len() {
+        return Err(HalError::OperationError {
+            message: "Vector lengths don't match".to_string(),
+        });
+    }
+    
+    let len = a.len();
+    let mut i = 0;
+    
+    // Process 4 elements at a time
+    while i + 4 <= len {
+        result[i] = a[i].sqrt();
+        result[i + 1] = a[i + 1].sqrt();
+        result[i + 2] = a[i + 2].sqrt();
+        result[i + 3] = a[i + 3].sqrt();
+        i += 4;
+    }
+    
+    // Handle remaining elements
+    while i < len {
+        result[i] = a[i].sqrt();
+        i += 1;
+    }
+    
+    Ok(())
+}
+
+/// SIMD-optimized element-wise exp
+pub fn simd_exp(a: &[f32], result: &mut [f32]) -> SimdResult {
+    if a.len() != result.len() {
+        return Err(HalError::OperationError {
+            message: "Vector lengths don't match".to_string(),
+        });
+    }
+    
+    let len = a.len();
+    let mut i = 0;
+    
+    // Process 4 elements at a time
+    while i + 4 <= len {
+        result[i] = a[i].exp();
+        result[i + 1] = a[i + 1].exp();
+        result[i + 2] = a[i + 2].exp();
+        result[i + 3] = a[i + 3].exp();
+        i += 4;
+    }
+    
+    // Handle remaining elements
+    while i < len {
+        result[i] = a[i].exp();
+        i += 1;
+    }
+    
+    Ok(())
+}
+
+/// SIMD-optimized element-wise log
+pub fn simd_log(a: &[f32], result: &mut [f32]) -> SimdResult {
+    if a.len() != result.len() {
+        return Err(HalError::OperationError {
+            message: "Vector lengths don't match".to_string(),
+        });
+    }
+    
+    let len = a.len();
+    let mut i = 0;
+    
+    // Process 4 elements at a time
+    while i + 4 <= len {
+        result[i] = a[i].ln();
+        result[i + 1] = a[i + 1].ln();
+        result[i + 2] = a[i + 2].ln();
+        result[i + 3] = a[i + 3].ln();
+        i += 4;
+    }
+    
+    // Handle remaining elements
+    while i < len {
+        result[i] = a[i].ln();
+        i += 1;
+    }
+    
+    Ok(())
+}
+
 /// SIMD-optimized matrix multiplication
 pub fn simd_matmul(
     a: &[f32],

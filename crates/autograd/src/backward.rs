@@ -5,7 +5,7 @@
 use tensor_core::{Tensor, Result, TensorError, Shape};
 use tensor_core::tensor::{TensorOps, TensorReduce, TensorStats, TensorBroadcast, TensorActivation, TensorRandom};
 use std::collections::{HashMap, HashSet};
-use super::{AutogradContext, DiffTensor};
+use super::AutogradContext;
 
 /// Operation types for gradient computation
 #[derive(Debug, Clone)]

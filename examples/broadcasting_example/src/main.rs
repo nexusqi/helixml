@@ -3,7 +3,7 @@
 //! Демонстрация broadcasting функциональности для правильного добавления bias.
 
 use helix_ml::*;
-use helix_ml::tensor::{TensorRandom, TensorOps, TensorBroadcast};
+use helix_ml::tensor::{TensorRandom, TensorBroadcast};
 
 fn main() -> Result<()> {
     println!("🌀 HelixML Broadcasting Example");

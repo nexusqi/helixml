@@ -3,12 +3,10 @@
 //! Advanced adaptive scheduling system for efficient multi-device
 //! computation orchestration in HelixML
 
-use tensor_core::{Tensor, Shape, DType, Device, Result, TensorError};
-use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
-use std::collections::{HashMap, VecDeque, HashSet};
-use std::sync::{Arc, Mutex, RwLock};
+use tensor_core::{Tensor, Shape, Device, Result, TensorError};
+use std::collections::{HashMap, VecDeque};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use anyhow::Context;
 use uuid::Uuid;
 
 pub mod scheduler;

@@ -1,10 +1,10 @@
 //! 🔨 Hammer Example - Revolutionary Autograd in Action
 
-use hammer::{Hammer, VortexGrad, VortexConfig, FractalGradient};
+use hammer::{VortexGrad, VortexConfig, FractalGradient};
 use hammer::{MultiAgentSystem, Architecture, HammerScheduler};
 use backend_cpu::CpuTensor;
-use tensor_core::{Shape, DType, Device, Tensor, Result};
-use tensor_core::tensor::{TensorOps, TensorRandom};
+use tensor_core::{Shape, Device, Tensor, Result};
+use tensor_core::tensor::TensorRandom;
 
 fn main() -> Result<()> {
     println!("🔨 Hammer - Universal Autograd Engine Demo\n");

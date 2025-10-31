@@ -8,7 +8,6 @@ use std::marker::PhantomData;
 
 // Re-exports
 pub mod ssm;
-pub use ssm::*;
 
 // Forward declaration for AutogradContext
 pub struct AutogradContext<T: Tensor>(std::marker::PhantomData<T>);

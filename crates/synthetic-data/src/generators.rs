@@ -6,8 +6,6 @@
 use tensor_core::{Tensor, Shape, DType, Device, Result};
 use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
 use rand::{Rng, SeedableRng};
-use rand_distr::{Distribution, Normal, Uniform, Beta, Gamma};
-use std::collections::HashMap;
 
 // Type aliases for generated data
 pub type GeneratedTimeSeries<T> = Vec<T>;
@@ -53,7 +51,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     fn generate_single_sequence(&mut self) -> Result<T> {
         // Generate random sequence with various patterns
         let shape = Shape::new(vec![self.sequence_length]);
-        let mut sequence = T::zeros(shape, DType::F32, &self.device)?;
+        let sequence = T::zeros(shape, DType::F32, &self.device)?;
         
         // Add different patterns: trends, cycles, noise
         let trend = self.generate_trend()?;
@@ -67,7 +65,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     
     fn generate_trend(&mut self) -> Result<T> {
         let shape = Shape::new(vec![self.sequence_length]);
-        let mut trend = T::zeros(shape, DType::F32, &self.device)?;
+        let trend = T::zeros(shape, DType::F32, &self.device)?;
         
         // Linear trend with some curvature
         for i in 0..self.sequence_length {
@@ -81,7 +79,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     
     fn generate_cycle(&mut self) -> Result<T> {
         let shape = Shape::new(vec![self.sequence_length]);
-        let mut cycle = T::zeros(shape, DType::F32, &self.device)?;
+        let cycle = T::zeros(shape, DType::F32, &self.device)?;
         
         // Multiple frequency components
         let frequencies = vec![0.1, 0.3, 0.7];
@@ -210,7 +208,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     fn generate_single_graph(&mut self) -> Result<T> {
         // Generate adjacency matrix
         let shape = Shape::new(vec![self.num_nodes, self.num_nodes]);
-        let mut adjacency = T::zeros(shape, DType::F32, &self.device)?;
+        let adjacency = T::zeros(shape, DType::F32, &self.device)?;
         
         // Generate edges with various patterns
         let edge_probability = 0.3; // 30% chance of edge between any two nodes
@@ -293,7 +291,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     
     fn generate_trend_component(&mut self) -> Result<T> {
         let shape = Shape::new(vec![self.series_length]);
-        let mut trend = T::zeros(shape, DType::F32, &self.device)?;
+        let trend = T::zeros(shape, DType::F32, &self.device)?;
         
         // Linear trend with some curvature
         for i in 0..self.series_length {
@@ -307,7 +305,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     
     fn generate_seasonal_component(&mut self) -> Result<T> {
         let shape = Shape::new(vec![self.series_length]);
-        let mut seasonal = T::zeros(shape, DType::F32, &self.device)?;
+        let seasonal = T::zeros(shape, DType::F32, &self.device)?;
         
         // Multiple seasonal patterns
         let periods = vec![12, 24, 48]; // Different seasonal periods
@@ -368,7 +366,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     
     fn generate_single_text(&mut self) -> Result<T> {
         let shape = Shape::new(vec![self.sequence_length]);
-        let mut text = T::zeros(shape, DType::F32, &self.device)?;
+        let text = T::zeros(shape, DType::F32, &self.device)?;
         
         // Generate token sequence with various patterns
         for i in 0..self.sequence_length {
@@ -401,7 +399,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     pub fn generate_fractal(&mut self, dimensions: (usize, usize), complexity: f32) -> Result<T> {
         let (height, width) = dimensions;
         let shape = Shape::new(vec![height, width]);
-        let mut fractal = T::zeros(shape, DType::F32, &self.device)?;
+        let fractal = T::zeros(shape, DType::F32, &self.device)?;
         
         // Generate fractal pattern using iterative function systems
         // This is a simplified version - in practice, you'd implement
@@ -414,7 +412,7 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
     pub fn generate_waves(&mut self, dimensions: (usize, usize), frequency: f32, amplitude: f32) -> Result<T> {
         let (height, width) = dimensions;
         let shape = Shape::new(vec![height, width]);
-        let mut waves = T::zeros(shape, DType::F32, &self.device)?;
+        let waves = T::zeros(shape, DType::F32, &self.device)?;
         
         // Generate wave pattern
         for y in 0..height {

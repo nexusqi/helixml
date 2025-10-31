@@ -14,7 +14,7 @@ pub mod pipelines;
 pub mod utils;
 
 use anyhow::Result;
-use tensor_core::{Tensor, Shape, DType, Device};
+use tensor_core::{Tensor, Device};
 
 /// Supported data modalities
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]

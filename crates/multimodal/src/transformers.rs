@@ -2,7 +2,7 @@
 //!
 //! Transformer architectures for multimodal data
 
-use tensor_core::{Tensor, Device, Result};
+use tensor_core::{Tensor, Result};
 use tensor_core::tensor::{TensorOps, TensorRandom};
 use std::marker::PhantomData;
 

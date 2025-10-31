@@ -1,7 +1,6 @@
 //! 🔮 Fractal Gradients - Multi-scale derivative computation
 
-use tensor_core::{Tensor, Shape, Result};
-use serde::{Serialize, Deserialize};
+use tensor_core::{Tensor, Result};
 
 /// Gradient at a specific scale level
 #[derive(Debug, Clone)]
@@ -20,7 +19,7 @@ pub struct FractalGradient<T: Tensor> {
 
 impl<T: Tensor> FractalGradient<T> {
     pub fn new(base_gradient: T, fractal_depth: usize) -> Self {
-        let mut scales = vec![ScaleLevel {
+        let scales = vec![ScaleLevel {
             scale: 1,
             gradient: base_gradient,
         }];

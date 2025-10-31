@@ -2,13 +2,12 @@
 //! 
 //! Core scheduling algorithms and task management for the adaptive scheduler
 
-use tensor_core::{Tensor, Shape, DType, Device, Result, TensorError};
-use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
-use std::collections::{HashMap, VecDeque, HashSet};
+use tensor_core::{Tensor, Device, Result, TensorError};
+use tensor_core::tensor::{TensorOps, TensorReduce};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
-use anyhow::Context;
-use petgraph::{Graph, Directed};
+use petgraph::Graph;
 use petgraph::graph::NodeIndex;
 use petgraph::algo::toposort;
 use petgraph::visit::EdgeRef;

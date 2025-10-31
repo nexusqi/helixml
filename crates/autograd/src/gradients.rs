@@ -2,8 +2,8 @@
 //! 
 //! Specialized gradient computation functions for complex operations
 
-use tensor_core::{Tensor, Result, TensorError, Shape, DType, Device};
-use tensor_core::tensor::{TensorOps, TensorReduce, TensorStats, TensorBroadcast, TensorActivation};
+use tensor_core::{Tensor, Result, TensorError};
+use tensor_core::tensor::{TensorOps, TensorReduce, TensorStats};
 use std::collections::HashMap;
 
 /// Gradient function registry

@@ -5,7 +5,6 @@
 use crate::{Module, CheckpointableModule, Result, TensorError, AutogradContext};
 use tensor_core::{Tensor, Shape, DType, Device};
 use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision};
-use std::f32::consts::PI;
 
 /// S4 (Structured State Space) layer with real implementation
 /// Based on "Efficiently Modeling Long Sequences with Structured State Spaces"

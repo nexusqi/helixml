@@ -4,9 +4,8 @@
 //! Features gradient accumulation, clipping, mixed precision, memory optimization, and advanced backward pass.
 
 use tensor_core::{Tensor, Result, TensorError};
-use tensor_core::tensor::{TensorOps, TensorStats, TensorReduce, TensorBroadcast, TensorActivation, TensorRandom};
+use tensor_core::tensor::{TensorOps, TensorStats, TensorReduce};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 
 // Core autograd modules
 pub mod advanced;

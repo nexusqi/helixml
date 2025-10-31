@@ -211,9 +211,9 @@ async fn run_policy_example(
     }
     
     // Monitor task execution order
-    let mut completed_critical = 0;
-    let mut completed_normal = 0;
-    let mut completed_low = 0;
+    let completed_critical = 0;
+    let completed_normal = 0;
+    let completed_low = 0;
     
     for _ in 0..50 {
         let metrics = scheduler.get_metrics()?;

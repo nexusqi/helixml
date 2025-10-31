@@ -2,12 +2,10 @@
 //! 
 //! Policy management for adaptive scheduling decisions
 
-use tensor_core::{Tensor, Shape, DType, Device, Result, TensorError};
-use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
+use tensor_core::{Tensor, Device, Result};
 use std::collections::{HashMap, VecDeque};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
-use anyhow::Context;
 
 use super::*;
 
@@ -77,7 +75,7 @@ pub struct PolicyMetrics {
 
 impl PolicyManager {
     pub fn new() -> Result<Self> {
-        let mut manager = Self {
+        let manager = Self {
             policies: Arc::new(RwLock::new(HashMap::new())),
             policy_weights: Arc::new(RwLock::new(HashMap::new())),
             policy_history: Arc::new(RwLock::new(VecDeque::new())),

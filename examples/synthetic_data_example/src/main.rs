@@ -4,7 +4,7 @@
 //! with verification and validation capabilities
 
 use synthetic_data::*;
-use tensor_core::{Tensor, Shape, DType, Device, Result};
+use tensor_core::{Tensor, Device, Result};
 use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorStats, TensorReduce};
 use backend_cpu::CpuTensor;
 use tracing::info;
