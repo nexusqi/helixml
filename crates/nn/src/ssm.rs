@@ -4,7 +4,9 @@
 
 use crate::{Module, CheckpointableModule, Result, TensorError, AutogradContext};
 use tensor_core::{Tensor, Shape, DType, Device};
-use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision};
+use tensor_core::tensor::{TensorOps, TensorRandom, TensorBroadcast, TensorMixedPrecision, TensorReduce, TensorStats, TensorActivation};
+use autograd::AutogradOps;
+use std::collections::HashMap;
 
 /// S4 (Structured State Space) layer with real implementation
 /// Based on "Efficiently Modeling Long Sequences with Structured State Spaces"
@@ -293,6 +295,30 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         self.device = device.clone();
         Ok(())
     }
+    
+    /// Forward pass with autograd support - simplified (uses regular forward)
+    fn forward_with_autograd(
+        &self,
+        autograd: &mut AutogradOps<T>,
+        input_id: usize,
+        param_ids: &mut HashMap<*const T, usize>,
+    ) -> Result<usize>
+    where
+        T: TensorOps + TensorReduce + TensorBroadcast + TensorStats + TensorActivation + TensorRandom + Clone,
+    {
+        // Register all parameters
+        for param in self.parameters() {
+            let param_ptr = param as *const T;
+            param_ids.entry(param_ptr).or_insert_with(|| {
+                autograd.tensor(param.clone(), true)
+            });
+        }
+        
+        // Use regular forward and wrap result
+        let input_tensor = autograd.context().get_tensor(input_id).unwrap().tensor();
+        let output = self.forward(input_tensor)?;
+        Ok(autograd.tensor(output, true))
+    }
 }
 
 impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecision> CheckpointableModule<T> for S4Block<T> {
@@ -486,6 +512,30 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         self.gate = self.gate.to_device(device)?;
         self.device = device.clone();
         Ok(())
+    }
+    
+    /// Forward pass with autograd support - simplified (uses regular forward)
+    fn forward_with_autograd(
+        &self,
+        autograd: &mut AutogradOps<T>,
+        input_id: usize,
+        param_ids: &mut HashMap<*const T, usize>,
+    ) -> Result<usize>
+    where
+        T: TensorOps + TensorReduce + TensorBroadcast + TensorStats + TensorActivation + TensorRandom + Clone,
+    {
+        // Register all parameters
+        for param in self.parameters() {
+            let param_ptr = param as *const T;
+            param_ids.entry(param_ptr).or_insert_with(|| {
+                autograd.tensor(param.clone(), true)
+            });
+        }
+        
+        // Use regular forward and wrap result
+        let input_tensor = autograd.context().get_tensor(input_id).unwrap().tensor();
+        let output = self.forward_mamba(input_tensor)?;
+        Ok(autograd.tensor(output, true))
     }
 }
 

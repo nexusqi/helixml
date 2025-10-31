@@ -3,14 +3,18 @@
 //! Neural network layers and modules for SSM/Hyena architectures.
 
 use tensor_core::{Tensor, Shape, DType, Device, Result, TensorError};
-use tensor_core::tensor::{TensorOps, TensorActivation, TensorRandom, TensorReduce, TensorBroadcast, TensorMixedPrecision};
+use tensor_core::tensor::{TensorOps, TensorActivation, TensorRandom, TensorReduce, TensorBroadcast, TensorMixedPrecision, TensorStats};
 use std::marker::PhantomData;
+use std::collections::HashMap;
 
 // Re-exports
 pub mod ssm;
 
 // Forward declaration for AutogradContext
 pub struct AutogradContext<T: Tensor>(std::marker::PhantomData<T>);
+
+// Import AutogradOps for forward_with_autograd
+use autograd::AutogradOps;
 
 /// Base trait for all neural network modules
 pub trait Module<T: Tensor> {
@@ -19,6 +23,19 @@ pub trait Module<T: Tensor> {
     fn parameters_mut(&mut self) -> Vec<&mut T>;
     fn device(&self) -> &Device;
     fn to_device(&mut self, device: &Device) -> Result<()>;
+    
+    /// Forward pass with autograd support
+    /// Takes input tensor ID in autograd context and returns output tensor ID
+    /// Also registers and tracks parameters for gradient computation
+    /// param_ids maps parameter pointer addresses to their autograd tensor IDs
+    fn forward_with_autograd(
+        &self,
+        autograd: &mut AutogradOps<T>,
+        input_id: usize,
+        param_ids: &mut HashMap<*const T, usize>,
+    ) -> Result<usize>
+    where
+        T: TensorOps + TensorReduce + TensorBroadcast + TensorStats + TensorActivation + TensorRandom + Clone;
 }
 
 /// Trait for modules that support gradient checkpointing
@@ -144,6 +161,60 @@ impl<T: Tensor + TensorOps + TensorBroadcast> Module<T> for Linear<T> {
         self.device = device.clone();
         Ok(())
     }
+    
+    /// Forward pass with autograd support
+    fn forward_with_autograd(
+        &self,
+        autograd: &mut AutogradOps<T>,
+        input_id: usize,
+        param_ids: &mut HashMap<*const T, usize>,
+    ) -> Result<usize>
+    where
+        T: TensorOps + TensorReduce + TensorBroadcast + TensorStats + TensorActivation + TensorRandom + Clone,
+    {
+        // Register weight parameter if not already registered
+        let weight_ptr = &self.weight as *const T;
+        let weight_id = *param_ids.entry(weight_ptr).or_insert_with(|| {
+            autograd.tensor(self.weight.clone(), true) // requires_grad = true for parameters
+        });
+        
+        // Transpose weight using autograd: weight.transpose(0, 1)
+        // autograd.transpose does transpose(0, 1) which is what we need
+        let weight_transpose_id = autograd.transpose(weight_id)?;
+        
+        // Perform matmul: input @ weight^T
+        // autograd.matmul does: left @ right
+        // So: matmul(input_id, weight_transpose_id) = input @ weight^T
+        let output_id = autograd.matmul(input_id, weight_transpose_id)?;
+        
+        // Add bias if present
+        if let Some(bias) = &self.bias {
+            // Register bias parameter if not already registered
+            let bias_ptr = bias as *const T;
+            let bias_id = *param_ids.entry(bias_ptr).or_insert_with(|| {
+                autograd.tensor(bias.clone(), true) // requires_grad = true
+            });
+            
+            // Broadcast bias to match output shape
+            // Get output shape from autograd context
+            let output_tensor = autograd.context().get_tensor(output_id).unwrap().tensor();
+            let output_shape = output_tensor.shape().clone();
+            
+            // Get bias tensor and broadcast it
+            let bias_tensor = autograd.context().get_tensor(bias_id).unwrap().tensor();
+            let bias_broadcasted = bias_tensor.broadcast_to(output_shape)?;
+            
+            // Register broadcasted bias in autograd (requires_grad = true to track gradients)
+            let bias_broadcast_id = autograd.tensor(bias_broadcasted, true);
+            
+            // Add bias: output + bias
+            let final_output_id = autograd.add(output_id, bias_broadcast_id)?;
+            
+            Ok(final_output_id)
+        } else {
+            Ok(output_id)
+        }
+    }
 }
 
 /// RMSNorm (Root Mean Square Normalization)
@@ -230,6 +301,29 @@ impl<T: Tensor + TensorOps + TensorReduce + TensorRandom + TensorBroadcast> Modu
         self.device = device.clone();
         Ok(())
     }
+    
+    /// Forward pass with autograd support - simplified implementation
+    fn forward_with_autograd(
+        &self,
+        autograd: &mut AutogradOps<T>,
+        input_id: usize,
+        param_ids: &mut HashMap<*const T, usize>,
+    ) -> Result<usize>
+    where
+        T: TensorOps + TensorReduce + TensorBroadcast + TensorStats + TensorActivation + TensorRandom + Clone,
+    {
+        // Register weight parameter if not already registered
+        let weight_ptr = &self.weight as *const T;
+        let weight_id = *param_ids.entry(weight_ptr).or_insert_with(|| {
+            autograd.tensor(self.weight.clone(), true)
+        });
+        
+        // TODO: Implement full RMSNorm forward_with_autograd
+        // For now, use regular forward and wrap result
+        let input_tensor = autograd.context().get_tensor(input_id).unwrap().tensor();
+        let output = self.forward(input_tensor)?;
+        Ok(autograd.tensor(output, true))
+    }
 }
 
 /// SiLU activation function (Swish)
@@ -267,6 +361,19 @@ impl<T: Tensor + TensorActivation> Module<T> for SiLU<T> {
     fn to_device(&mut self, device: &Device) -> Result<()> {
         self.device = device.clone();
         Ok(())
+    }
+    
+    /// Forward pass with autograd support
+    fn forward_with_autograd(
+        &self,
+        autograd: &mut AutogradOps<T>,
+        input_id: usize,
+        _param_ids: &mut HashMap<*const T, usize>,
+    ) -> Result<usize>
+    where
+        T: TensorOps + TensorReduce + TensorBroadcast + TensorStats + TensorActivation + TensorRandom + Clone,
+    {
+        autograd.silu(input_id)
     }
 }
 
@@ -306,6 +413,19 @@ impl<T: Tensor + TensorActivation> Module<T> for GELU<T> {
         self.device = device.clone();
         Ok(())
     }
+    
+    /// Forward pass with autograd support
+    fn forward_with_autograd(
+        &self,
+        autograd: &mut AutogradOps<T>,
+        input_id: usize,
+        _param_ids: &mut HashMap<*const T, usize>,
+    ) -> Result<usize>
+    where
+        T: TensorOps + TensorReduce + TensorBroadcast + TensorStats + TensorActivation + TensorRandom + Clone,
+    {
+        autograd.gelu(input_id)
+    }
 }
 
 /// ReLU activation function
@@ -343,6 +463,19 @@ impl<T: Tensor + TensorActivation> Module<T> for ReLU<T> {
     fn to_device(&mut self, device: &Device) -> Result<()> {
         self.device = device.clone();
         Ok(())
+    }
+    
+    /// Forward pass with autograd support
+    fn forward_with_autograd(
+        &self,
+        autograd: &mut AutogradOps<T>,
+        input_id: usize,
+        _param_ids: &mut HashMap<*const T, usize>,
+    ) -> Result<usize>
+    where
+        T: TensorOps + TensorReduce + TensorBroadcast + TensorStats + TensorActivation + TensorRandom + Clone,
+    {
+        autograd.relu(input_id)
     }
 }
 
@@ -418,6 +551,26 @@ impl<T: Tensor + TensorRandom + TensorOps> Module<T> for Dropout<T> {
         self.device = device.clone();
         Ok(())
     }
+    
+    /// Forward pass with autograd support - simplified (no dropout in autograd)
+    fn forward_with_autograd(
+        &self,
+        autograd: &mut AutogradOps<T>,
+        input_id: usize,
+        _param_ids: &mut HashMap<*const T, usize>,
+    ) -> Result<usize>
+    where
+        T: TensorOps + TensorReduce + TensorBroadcast + TensorStats + TensorActivation + TensorRandom + Clone,
+    {
+        // During inference or if training is disabled, just return input
+        if !self.training {
+            Ok(input_id)
+        } else {
+            // TODO: Implement dropout with autograd (requires random operations in autograd)
+            // For now, pass through (no dropout in autograd path)
+            Ok(input_id)
+        }
+    }
 }
 
 /// Sequential container for modules
@@ -484,6 +637,26 @@ impl<T: Tensor> Module<T> for Sequential<T> {
         }
         self.device = device.clone();
         Ok(())
+    }
+    
+    /// Forward pass with autograd support - chains through all modules
+    fn forward_with_autograd(
+        &self,
+        autograd: &mut AutogradOps<T>,
+        input_id: usize,
+        param_ids: &mut HashMap<*const T, usize>,
+    ) -> Result<usize>
+    where
+        T: TensorOps + TensorReduce + TensorBroadcast + TensorStats + TensorActivation + TensorRandom + Clone,
+    {
+        let mut current_id = input_id;
+        
+        // Chain forward pass through all modules
+        for module in &self.modules {
+            current_id = module.forward_with_autograd(autograd, current_id, param_ids)?;
+        }
+        
+        Ok(current_id)
     }
 }
 
@@ -614,6 +787,30 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         self.device = device.clone();
         // In practice, would move all tensors to the new device
         Ok(())
+    }
+    
+    /// Forward pass with autograd support - simplified (uses regular forward)
+    fn forward_with_autograd(
+        &self,
+        autograd: &mut AutogradOps<T>,
+        input_id: usize,
+        param_ids: &mut HashMap<*const T, usize>,
+    ) -> Result<usize>
+    where
+        T: TensorOps + TensorReduce + TensorBroadcast + TensorStats + TensorActivation + TensorRandom + Clone,
+    {
+        // Register all parameters
+        for param in self.parameters() {
+            let param_ptr = param as *const T;
+            param_ids.entry(param_ptr).or_insert_with(|| {
+                autograd.tensor(param.clone(), true)
+            });
+        }
+        
+        // Use regular forward and wrap result
+        let input_tensor = autograd.context().get_tensor(input_id).unwrap().tensor();
+        let output = self.forward_ssm(input_tensor)?;
+        Ok(autograd.tensor(output, true))
     }
 }
 
@@ -746,6 +943,30 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         self.gate.to_device(device)?;
         self.out_proj.to_device(device)?;
         Ok(())
+    }
+    
+    /// Forward pass with autograd support - simplified (uses regular forward)
+    fn forward_with_autograd(
+        &self,
+        autograd: &mut AutogradOps<T>,
+        input_id: usize,
+        param_ids: &mut HashMap<*const T, usize>,
+    ) -> Result<usize>
+    where
+        T: TensorOps + TensorReduce + TensorBroadcast + TensorStats + TensorActivation + TensorRandom + Clone,
+    {
+        // Register all parameters
+        for param in self.parameters() {
+            let param_ptr = param as *const T;
+            param_ids.entry(param_ptr).or_insert_with(|| {
+                autograd.tensor(param.clone(), true)
+            });
+        }
+        
+        // Use regular forward and wrap result
+        let input_tensor = autograd.context().get_tensor(input_id).unwrap().tensor();
+        let output = self.forward_mamba(input_tensor)?;
+        Ok(autograd.tensor(output, true))
     }
 }
 
@@ -891,6 +1112,30 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         // In practice, would move long_conv_weights to new device
         Ok(())
     }
+    
+    /// Forward pass with autograd support - simplified (uses regular forward)
+    fn forward_with_autograd(
+        &self,
+        autograd: &mut AutogradOps<T>,
+        input_id: usize,
+        param_ids: &mut HashMap<*const T, usize>,
+    ) -> Result<usize>
+    where
+        T: TensorOps + TensorReduce + TensorBroadcast + TensorStats + TensorActivation + TensorRandom + Clone,
+    {
+        // Register all parameters
+        for param in self.parameters() {
+            let param_ptr = param as *const T;
+            param_ids.entry(param_ptr).or_insert_with(|| {
+                autograd.tensor(param.clone(), true)
+            });
+        }
+        
+        // Use regular forward and wrap result
+        let input_tensor = autograd.context().get_tensor(input_id).unwrap().tensor();
+        let output = self.forward_hyena(input_tensor)?;
+        Ok(autograd.tensor(output, true))
+    }
 }
 
 /// HyenaOperator - Core FFT-based convolution operator
@@ -983,6 +1228,30 @@ impl<T: Tensor + TensorOps + TensorRandom + TensorBroadcast + TensorMixedPrecisi
         self.device = device.clone();
         // In practice, would move tensors to new device
         Ok(())
+    }
+    
+    /// Forward pass with autograd support - simplified (uses regular forward)
+    fn forward_with_autograd(
+        &self,
+        autograd: &mut AutogradOps<T>,
+        input_id: usize,
+        param_ids: &mut HashMap<*const T, usize>,
+    ) -> Result<usize>
+    where
+        T: TensorOps + TensorReduce + TensorBroadcast + TensorStats + TensorActivation + TensorRandom + Clone,
+    {
+        // Register all parameters
+        for param in self.parameters() {
+            let param_ptr = param as *const T;
+            param_ids.entry(param_ptr).or_insert_with(|| {
+                autograd.tensor(param.clone(), true)
+            });
+        }
+        
+        // Use regular forward and wrap result
+        let input_tensor = autograd.context().get_tensor(input_id).unwrap().tensor();
+        let output = self.forward_operator(input_tensor)?;
+        Ok(autograd.tensor(output, true))
     }
 }
 

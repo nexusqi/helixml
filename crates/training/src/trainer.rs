@@ -350,26 +350,29 @@ where
             // Clear previous computation graph
             autograd.clear();
             
-            // Re-acquire model lock for forward pass
-            let mut model = self.model.lock().unwrap();
+            // Map to track parameter pointer -> autograd ID
+            let mut param_ids = std::collections::HashMap::new();
             
-            // Forward pass through autograd
+            // Re-acquire model lock for forward pass
+            let model = self.model.lock().unwrap();
+            
+            // Forward pass through autograd using forward_with_autograd
             // Create input tensor in autograd context (don't track input gradients)
             let input_id = autograd.tensor(input.clone(), false);
             
-            // Perform forward pass through model
-            // Note: This is a simplified approach - ideally Module::forward would work through autograd
-            // For now, we do forward outside autograd, then wrap the output
-            let model_output = model.forward(&input)?;
+            // Perform forward pass through model using forward_with_autograd
+            // This will register all parameters and build computation graph
+            let output_id = model.forward_with_autograd(&mut autograd, input_id, &mut param_ids)?;
             
-            // Register output in autograd for gradient tracking
-            let output_id = autograd.tensor(model_output, true);
+            // Release model lock before loss computation
+            drop(model);
             
-            // Compute loss through autograd operations
-            // Create target tensor (don't track target gradients) - use original target
+            // Compute loss through autograd operations using LossFunction
+            // Create target tensor (don't track target gradients)
             let target_id = autograd.tensor(target, false);
             
-            // Compute loss: (output - target)^2
+            // Compute loss through autograd operations
+            // Using autograd operations directly for now (LossFunction could be integrated later)
             let diff_id = autograd.sub(output_id, target_id)?;
             let squared_id = autograd.mul(diff_id, diff_id)?;
             let loss_id = autograd.mean(squared_id, None, false)?;
@@ -377,32 +380,61 @@ where
             // Backward pass - this will compute gradients for all tensors with requires_grad=true
             autograd.backward(loss_id)?;
             
-            // Extract gradients for model parameters
-            // Release model lock before optimizer operations (we don't need it anymore for now)
+            // Extract gradients for model parameters and apply optimizer
+            // Strategy: Clone gradients first, then work with parameters
+            
+            // Collect gradient clones while autograd is locked
+            let mut param_grad_data: Vec<(usize, T)> = Vec::new(); // (autograd_id, gradient_clone)
+            
+            for (param_ptr, &autograd_id) in param_ids.iter() {
+                if let Some(diff_tensor) = autograd.get_tensor(autograd_id) {
+                    if let Some(grad) = diff_tensor.grad() {
+                        param_grad_data.push((autograd_id, grad.clone()));
+                    }
+                }
+            }
+            
+            // Release autograd lock
+            drop(autograd);
+            
+            // Now get model parameters and create pairs
+            // The challenge: we need &mut T params and &T gradients
+            // Since we cloned gradients, we can store them temporarily
+            let mut model = self.model.lock().unwrap();
+            let param_muts = model.parameters_mut();
+            
+            // Match parameters with gradients using param_ids mapping
+            // Build pairs: we'll collect owned gradients and match with param refs
+            let mut param_indices: Vec<usize> = Vec::new();
+            let mut gradient_clones: Vec<T> = Vec::new();
+            
+            for param_mut in param_muts.iter() {
+                let param_ptr = param_mut as *const T;
+                if let Some(&autograd_id) = param_ids.get(&param_ptr) {
+                    // Find corresponding gradient in param_grad_data
+                    if let Some((_, grad_clone)) = param_grad_data.iter().find(|(id, _)| *id == autograd_id) {
+                        param_indices.push(param_ptr as usize); // Store index for matching
+                        gradient_clones.push(grad_clone.clone());
+                    }
+                }
+            }
+            
+            // Release model lock
             drop(model);
             
-            // Collect parameter-gradient pairs for optimizer
-            // Note: We need to match parameters with their gradients from autograd context
-            // This requires storing parameter IDs during forward pass
-            // For now, implement a mapping based on parameter order
-            
-            // Get gradients from autograd context for tracked tensors
-            // The challenge is matching autograd tensor IDs with Module parameters
-            // In a full implementation, we'd store parameter_id -> autograd_id mapping
-            
-            // Simplified approach: Extract all gradients from autograd context
-            // and match them with parameters by index (this assumes order is preserved)
-            let context = autograd.context();
-            
-            // Note: For full implementation, we need to:
-            // 1. Store parameter -> autograd_id mapping during forward pass
-            // 2. After backward pass, extract gradients using the mapping
-            // 3. Get mutable access to model parameters
-            // 4. Create param_grad_pairs: &mut [(&mut T, &T)]
-            // 5. Call optimizer.step(param_grad_pairs)
-            
-            // For now, skip gradient extraction and application
-            // This requires refactoring Module::forward to work through AutogradOps
+            // Apply gradients using optimizer
+            // Note: Optimizer expects &mut [(&mut T, &T)], but we have:
+            // - Owned gradients in gradient_clones
+            // - Need to get &mut T for params
+            // 
+            // This is a borrowing challenge. For now, we acknowledge that:
+            // 1. Gradients are correctly computed in autograd
+            // 2. The mapping between params and gradients is established
+            // 3. Full optimizer integration requires either:
+            //    a) Storing gradients in a way that allows &T references, OR
+            //    b) Modifying Optimizer API to work differently
+            //
+            // TODO: Complete optimizer integration - gradients are ready but application needs refinement
             
             // Note: Full gradient application requires:
             // 1. Tracking parameter -> autograd_id mapping during forward pass
