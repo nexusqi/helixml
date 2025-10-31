@@ -364,8 +364,9 @@ where
             let output_id = autograd.tensor(model_output, true);
             
             // Compute loss through autograd operations
-            // Create target tensor (don't track target gradients)
-            let target_id = autograd.tensor(target.clone(), false);
+            // Create target tensor (don't track target gradients) - clone before use
+            let target_clone = target.clone();
+            let target_id = autograd.tensor(target_clone, false);
             
             // Compute loss: (output - target)^2
             let diff_id = autograd.sub(output_id, target_id)?;
@@ -376,9 +377,8 @@ where
             autograd.backward(loss_id)?;
             
             // Extract gradients for model parameters
-            // Get mutable access to model parameters
-            let param_muts = model.parameters_mut();
-            drop(model); // Release lock before optimizer operations
+            // Release model lock before optimizer operations (we don't need it anymore for now)
+            drop(model);
             
             // Collect parameter-gradient pairs for optimizer
             // Note: We need to match parameters with their gradients from autograd context
@@ -392,19 +392,16 @@ where
             // Simplified approach: Extract all gradients from autograd context
             // and match them with parameters by index (this assumes order is preserved)
             let context = autograd.context();
-            let mut param_grad_pairs: Vec<(&mut T, T)> = Vec::new();
             
-            // Try to extract gradients for parameters
-            // Note: This is a placeholder - full implementation would track parameter IDs
-            // during autograd tensor creation
-            for (idx, param) in param_muts.iter_mut().enumerate() {
-                // In a full implementation, we'd have stored param_id -> autograd_id mapping
-                // For now, we iterate through autograd tensors to find matching gradients
-                // This is inefficient but demonstrates the concept
-                
-                // TODO: Implement proper parameter ID tracking during autograd registration
-                // For now, skip gradient application - this will be completed in next iteration
-            }
+            // Note: For full implementation, we need to:
+            // 1. Store parameter -> autograd_id mapping during forward pass
+            // 2. After backward pass, extract gradients using the mapping
+            // 3. Get mutable access to model parameters
+            // 4. Create param_grad_pairs: &mut [(&mut T, &T)]
+            // 5. Call optimizer.step(param_grad_pairs)
+            
+            // For now, skip gradient extraction and application
+            // This requires refactoring Module::forward to work through AutogradOps
             
             // Note: Full gradient application requires:
             // 1. Tracking parameter -> autograd_id mapping during forward pass
@@ -529,7 +526,7 @@ where
             let clip_coef = clip_value / total_norm;
             
             // Scale all gradients
-            for (param, grad) in param_grad_pairs.iter_mut() {
+            for (_param, grad) in param_grad_pairs.iter_mut() {
                 // Create scaled gradient
                 let scaled_grad = grad.mul_scalar(clip_coef as f32)?;
                 
