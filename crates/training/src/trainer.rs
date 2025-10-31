@@ -405,15 +405,15 @@ where
             
             // Match parameters with gradients using param_ids mapping
             // Build pairs: we'll collect owned gradients and match with param refs
-            let mut param_indices: Vec<usize> = Vec::new();
             let mut gradient_clones: Vec<T> = Vec::new();
             
             for param_mut in param_muts.iter() {
-                let param_ptr = param_mut as *const T;
+                // Get the actual &mut T reference and convert to pointer
+                let param_ref: &T = *param_mut;
+                let param_ptr = param_ref as *const T;
                 if let Some(&autograd_id) = param_ids.get(&param_ptr) {
                     // Find corresponding gradient in param_grad_data
                     if let Some((_, grad_clone)) = param_grad_data.iter().find(|(id, _)| *id == autograd_id) {
-                        param_indices.push(param_ptr as usize); // Store index for matching
                         gradient_clones.push(grad_clone.clone());
                     }
                 }
